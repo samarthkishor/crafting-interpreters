@@ -1,0 +1,156 @@
+module Error = struct
+  type runtime_error = {
+    where: int;
+    message: string
+  }
+
+  exception RuntimeError of runtime_error
+
+  let had_error = ref false
+
+  let report line where message =
+    Printf.eprintf "[line %d] Error %s: %s\n" line where message;
+    flush stderr;
+    had_error := true
+
+  let error line message =
+    report line "" message
+end
+
+
+module Value = struct
+  type t =
+    | LoxBool of bool
+    | LoxInt of int
+    | LoxNumber of float
+    | LoxNil
+end
+
+
+type token_type =
+  (* Single character tokens *)
+  | LeftParen | RightParen | LeftBrace | RightBrace
+  | Comma | Dot | Minus | Plus | Semicolon | Slash | Star
+  (* One or two character tokens *)
+  | Bang | BangEqual | Equal | EqualEqual
+  | Greater | GreaterEqual | Less | LessEqual
+  (* Literals *)
+  | Identifier | String | Number
+  (* Keywords *)
+  | And | Class | Else | False | Fun | For | If | Nil | Or | Print | Return
+  | Super | This | True | Var | While
+  | Eof
+
+
+type token = {
+  token_type : token_type;
+  lexeme : string;
+  literal : Value.t;
+  line : int;
+}
+
+
+type scanner = {
+  source: string;
+  tokens: token list;
+  start: int;
+  current: int;
+  line: int;
+}
+
+
+let make_scanner source =
+  { source = source; tokens = []; start = 0; current = 0; line = 1; }
+
+
+let is_at_end scanner =
+  scanner.current >= (String.length scanner.source)
+
+
+let advance_scanner scanner =
+  { scanner with current = scanner.current + 1 }
+
+
+let get_char scanner =
+  if (scanner.current) > (String.length scanner.source) then
+    None
+  else Some (String.get scanner.source (scanner.current - 1))
+
+
+let add_token scanner token_type =
+  let token = { token_type = token_type;
+                (* NOTE String.sub is weird in OCaml... see documentation *)
+                lexeme = String.sub scanner.source scanner.start (scanner.current - scanner.start);
+                literal = Value.LoxNil;
+                line = scanner.line; } in
+  { scanner with tokens = scanner.tokens @ [token] }
+
+
+let add_double_token scanner double_token single_token =
+  match (scanner |> advance_scanner |> get_char) with
+  | None -> add_token scanner single_token
+  | Some c ->
+    if c <> '=' then
+      add_token scanner single_token
+    else
+      add_token (advance_scanner scanner) double_token
+
+
+let peek scanner =
+  if scanner.current > (String.length scanner.source) then
+    '\x00'
+  else
+    String.get scanner.source scanner.current
+
+
+let add_comment scanner =
+  match (scanner |> advance_scanner |> get_char) with
+  | None -> add_token scanner Slash
+  | Some c ->
+    if c = '/' then
+      let rec comment_out scanner =
+        if is_at_end scanner || (peek scanner) = '\n' then
+          scanner
+        else
+          scanner |> advance_scanner |> comment_out
+      in
+      comment_out scanner
+    else
+      add_token scanner Slash
+
+
+let scan_token scanner =
+  let scanner = advance_scanner scanner in
+  (match get_char scanner with
+   | None -> scanner
+   | Some c ->
+     match c with
+     | '(' -> add_token scanner LeftParen
+     | ')' -> add_token scanner RightParen
+     | '{' -> add_token scanner LeftBrace
+     | '}' -> add_token scanner RightBrace
+     | ',' -> add_token scanner Comma
+     | '.' -> add_token scanner Dot
+     | '-' -> add_token scanner Minus
+     | '+' -> add_token scanner Plus
+     | ';' -> add_token scanner Semicolon
+     | '*' -> add_token scanner Star
+     | '!' -> add_double_token scanner BangEqual Bang
+     | '=' -> add_double_token scanner EqualEqual Equal
+     | '<' -> add_double_token scanner LessEqual Less
+     | '>' -> add_double_token scanner GreaterEqual Greater
+     | '/' -> add_comment scanner
+     | _ -> Error.error scanner.line "Unexpected Character."; scanner)
+
+
+let rec scan_tokens scanner =
+  if is_at_end scanner then
+    let token = { token_type = Eof; lexeme = ""; literal = Value.LoxNil; line = scanner.line } in
+    scanner.tokens @ [token]
+  else
+    let scanner = { scanner with start = scanner.current } in
+    scan_tokens (scan_token scanner)
+
+
+(* let () =
+ *   make_scanner "()." |> scan_tokens |> List.iter (fun token -> print_endline token.lexeme) *)
