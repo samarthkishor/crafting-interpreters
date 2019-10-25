@@ -23,6 +23,7 @@ module Value = struct
     | LoxBool of bool
     | LoxInt of int
     | LoxNumber of float
+    | LoxString of string
     | LoxNil
 end
 
@@ -86,6 +87,14 @@ let add_token scanner token_type =
   { scanner with tokens = scanner.tokens @ [token] }
 
 
+let add_token_with_literal scanner token_type literal =
+  let token = { token_type = token_type;
+                lexeme = String.sub scanner.source (scanner.start) (scanner.current - scanner.start + 1);
+                literal = literal;
+                line = scanner.line; } in
+  { scanner with tokens = scanner.tokens @ [token] }
+
+
 let add_double_token scanner double_token single_token =
   match (scanner |> advance_scanner |> get_char) with
   | None -> add_token scanner single_token
@@ -119,6 +128,23 @@ let add_comment scanner =
       add_token scanner Slash
 
 
+let rec consume_string scanner =
+  if is_at_end scanner then
+    begin
+      Error.error scanner.line "Unterminated String.";
+      scanner
+    end
+  else if (peek scanner) = '"' then
+    let literal =
+      Value.LoxString
+        (String.sub scanner.source (scanner.start + 1) (scanner.current - scanner.start - 1))
+    in
+    add_token_with_literal scanner String literal
+  else
+    scanner |> advance_scanner |> consume_string
+
+
+
 let scan_token scanner =
   let scanner = advance_scanner scanner in
   (match get_char scanner with
@@ -140,6 +166,9 @@ let scan_token scanner =
      | '<' -> add_double_token scanner LessEqual Less
      | '>' -> add_double_token scanner GreaterEqual Greater
      | '/' -> add_comment scanner
+     | ' ' | '\r' | '\t' -> scanner
+     | '\n' -> { scanner with line = scanner.line + 1 }
+     | '"' -> consume_string scanner
      | _ -> Error.error scanner.line "Unexpected Character."; scanner)
 
 
