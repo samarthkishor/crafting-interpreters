@@ -60,6 +60,26 @@ type scanner = {
 }
 
 
+let keywords =
+  [ ("and", And)
+  ; ("class", Class)
+  ; ("else", Else)
+  ; ("false", False)
+  ; ("fun", Fun)
+  ; ("for", For)
+  ; ("if", If)
+  ; ("nil", Nil)
+  ; ("or", Or)
+  ; ("print", Print)
+  ; ("return", Return)
+  ; ("super", Super)
+  ; ("this", This)
+  ; ("true", True)
+  ; ("var", Var)
+  ; ("while", While)
+  ]
+
+
 let make_scanner source =
   { source = source; tokens = []; start = 0; current = 0; line = 1; }
 
@@ -157,6 +177,12 @@ let rec consume_string scanner =
 let is_digit c = c >= '0' && c <= '9'
 
 
+let is_alpha c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'z') || c == '_'
+
+
+let is_alphanumeric c = is_digit c || is_alpha c
+
+
 let rec number scanner =
   if not ((is_digit (peek scanner)) || ((peek scanner) = '.')) then
     let value = String.sub scanner.source scanner.start (scanner.current - scanner.start) in
@@ -166,6 +192,18 @@ let rec number scanner =
     | Some n -> add_token_with_literal scanner Number (Value.LoxNumber n)
   else
     scanner |> advance_scanner |> number
+
+
+let rec identifier scanner =
+  if not (is_alphanumeric (peek scanner)) then
+    let text = String.sub scanner.source scanner.start (scanner.current - scanner.start) in
+    let token_type =
+      match List.assoc_opt text keywords with
+      | None -> Identifier
+      | Some t -> t in
+    add_token scanner token_type
+  else
+    scanner |> advance_scanner |> identifier
 
 
 let scan_token scanner =
@@ -193,6 +231,7 @@ let scan_token scanner =
     | '\n' -> { scanner with line = scanner.line + 1 }
     | '"' -> consume_string scanner
     | c when is_digit c -> number scanner
+    | c when is_alpha c -> identifier scanner
     | _ -> Error.error scanner.line "Unexpected Character."; scanner
 
 
@@ -203,7 +242,3 @@ let rec scan_tokens scanner =
   else
     let scanner = { scanner with start = scanner.current } in
     scan_tokens (scan_token scanner)
-
-
-(* let () =
- *   make_scanner "()." |> scan_tokens |> List.iter (fun token -> print_endline token.lexeme) *)
