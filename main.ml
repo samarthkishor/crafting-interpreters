@@ -1,6 +1,3 @@
-open Error
-
-
 let run source =
   print_endline source
 
@@ -26,14 +23,14 @@ let run_prompt () =
     flush stdout;
     let line = input_line stdin in
     run line;
-    had_error := false;
+    Error.had_error := false;
   done
 
 
 let run_file file_name =
   let file_contents = read_file file_name in
   run file_contents;
-  if !had_error then exit 65
+  if !Error.had_error then exit 65
 
 
 let () =
