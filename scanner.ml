@@ -1,33 +1,3 @@
-module Error = struct
-  type runtime_error = {
-    where: int;
-    message: string
-  }
-
-  exception RuntimeError of runtime_error
-
-  let had_error = ref false
-
-  let report line where message =
-    Printf.eprintf "[line %d] Error %s: %s\n" line where message;
-    flush stderr;
-    had_error := true
-
-  let error line message =
-    report line "" message
-end
-
-
-module Value = struct
-  type t =
-    | LoxBool of bool
-    | LoxInt of int
-    | LoxNumber of float
-    | LoxString of string
-    | LoxNil
-end
-
-
 type token_type =
   (* Single character tokens *)
   | LeftParen | RightParen | LeftBrace | RightBrace
