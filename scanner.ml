@@ -89,7 +89,10 @@ let add_token scanner token_type =
 
 let add_token_with_literal scanner token_type literal =
   let token = { token_type = token_type;
-                lexeme = String.sub scanner.source (scanner.start) (scanner.current - scanner.start + 1);
+                lexeme =
+                  (match token_type with
+                   | String -> String.sub scanner.source (scanner.start) (scanner.current - scanner.start + 1)
+                   | _ -> String.sub scanner.source (scanner.start) (scanner.current - scanner.start));
                 literal = literal;
                 line = scanner.line; } in
   { scanner with tokens = scanner.tokens @ [token] }
@@ -106,10 +109,17 @@ let add_double_token scanner double_token single_token =
 
 
 let peek scanner =
-  if scanner.current > (String.length scanner.source) then
+  if scanner.current >= (String.length scanner.source) then
     '\x00'
   else
     String.get scanner.source scanner.current
+
+
+let peek_next scanner =
+  if (scanner.current + 1) >= (String.length scanner.source) then
+    '\x00'
+  else
+    String.get scanner.source (scanner.current + 1)
 
 
 let add_comment scanner =
@@ -144,32 +154,46 @@ let rec consume_string scanner =
     scanner |> advance_scanner |> consume_string
 
 
+let is_digit c = c >= '0' && c <= '9'
+
+
+let rec number scanner =
+  if not ((is_digit (peek scanner)) || ((peek scanner) = '.')) then
+    let value = String.sub scanner.source scanner.start (scanner.current - scanner.start) in
+    let num = try Some (float_of_string value) with _ -> None in
+    match num with
+    | None -> Error.error scanner.line "Invalid Number."; scanner
+    | Some n -> add_token_with_literal scanner Number (Value.LoxNumber n)
+  else
+    scanner |> advance_scanner |> number
+
 
 let scan_token scanner =
   let scanner = advance_scanner scanner in
-  (match get_char scanner with
-   | None -> scanner
-   | Some c ->
-     match c with
-     | '(' -> add_token scanner LeftParen
-     | ')' -> add_token scanner RightParen
-     | '{' -> add_token scanner LeftBrace
-     | '}' -> add_token scanner RightBrace
-     | ',' -> add_token scanner Comma
-     | '.' -> add_token scanner Dot
-     | '-' -> add_token scanner Minus
-     | '+' -> add_token scanner Plus
-     | ';' -> add_token scanner Semicolon
-     | '*' -> add_token scanner Star
-     | '!' -> add_double_token scanner BangEqual Bang
-     | '=' -> add_double_token scanner EqualEqual Equal
-     | '<' -> add_double_token scanner LessEqual Less
-     | '>' -> add_double_token scanner GreaterEqual Greater
-     | '/' -> add_comment scanner
-     | ' ' | '\r' | '\t' -> scanner
-     | '\n' -> { scanner with line = scanner.line + 1 }
-     | '"' -> consume_string scanner
-     | _ -> Error.error scanner.line "Unexpected Character."; scanner)
+  match get_char scanner with
+  | None -> scanner
+  | Some c ->
+    match c with
+    | '(' -> add_token scanner LeftParen
+    | ')' -> add_token scanner RightParen
+    | '{' -> add_token scanner LeftBrace
+    | '}' -> add_token scanner RightBrace
+    | ',' -> add_token scanner Comma
+    | '.' -> add_token scanner Dot
+    | '-' -> add_token scanner Minus
+    | '+' -> add_token scanner Plus
+    | ';' -> add_token scanner Semicolon
+    | '*' -> add_token scanner Star
+    | '!' -> add_double_token scanner BangEqual Bang
+    | '=' -> add_double_token scanner EqualEqual Equal
+    | '<' -> add_double_token scanner LessEqual Less
+    | '>' -> add_double_token scanner GreaterEqual Greater
+    | '/' -> add_comment scanner
+    | ' ' | '\r' | '\t' -> scanner
+    | '\n' -> { scanner with line = scanner.line + 1 }
+    | '"' -> consume_string scanner
+    | c when is_digit c -> number scanner
+    | _ -> Error.error scanner.line "Unexpected Character."; scanner
 
 
 let rec scan_tokens scanner =
