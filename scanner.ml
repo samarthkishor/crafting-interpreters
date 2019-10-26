@@ -123,17 +123,18 @@ let add_comment scanner =
 
 
 let rec consume_string scanner =
-  if is_at_end scanner then
-    begin
-      Error.error scanner.line "Unterminated String.";
-      scanner
-    end
-  else if (peek scanner) = '"' then
+  if (peek scanner) = '"' && not (is_at_end scanner) then
+    let scanner = advance_scanner scanner in
     let literal =
       Value.LoxString
         (String.sub scanner.source (scanner.start + 1) (scanner.current - scanner.start - 1))
     in
     add_token_with_literal scanner String literal
+  else if is_at_end scanner then
+    begin
+      Error.error scanner.line "Unterminated String.";
+      scanner
+    end
   else
     scanner |> advance_scanner |> consume_string
 
