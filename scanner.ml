@@ -68,10 +68,14 @@ let get_char scanner =
   else Some (String.get scanner.source (scanner.current - 1))
 
 
+let get_lexeme scanner =
+  String.sub scanner.source scanner.start (scanner.current - scanner.start)
+
+
 let add_token scanner token_type =
   let token = { token_type = token_type;
                 (* NOTE String.sub is weird in OCaml... see documentation *)
-                lexeme = String.sub scanner.source scanner.start (scanner.current - scanner.start);
+                lexeme = get_lexeme scanner;
                 literal = Value.LoxNil;
                 line = scanner.line; } in
   { scanner with tokens = token :: scanner.tokens }
@@ -79,10 +83,7 @@ let add_token scanner token_type =
 
 let add_token_with_literal scanner token_type literal =
   let token = { token_type = token_type;
-                lexeme =
-                  (match token_type with
-                   | String -> String.sub scanner.source (scanner.start) (scanner.current - scanner.start + 1)
-                   | _ -> String.sub scanner.source (scanner.start) (scanner.current - scanner.start));
+                lexeme = get_lexeme scanner;
                 literal = literal;
                 line = scanner.line; } in
   { scanner with tokens = token :: scanner.tokens }
@@ -103,13 +104,6 @@ let peek scanner =
     '\x00'
   else
     String.get scanner.source scanner.current
-
-
-let peek_next scanner =
-  if (scanner.current + 1) >= (String.length scanner.source) then
-    '\x00'
-  else
-    String.get scanner.source (scanner.current + 1)
 
 
 let add_comment scanner =
@@ -155,7 +149,7 @@ let is_alphanumeric c = is_digit c || is_alpha c
 
 let rec number scanner =
   if not ((is_digit (peek scanner)) || ((peek scanner) = '.')) then
-    let value = String.sub scanner.source scanner.start (scanner.current - scanner.start) in
+    let value = get_lexeme scanner in
     let num = try Some (float_of_string value) with _ -> None in
     match num with
     | None -> Error.error scanner.line "Invalid Number."; scanner
@@ -166,7 +160,7 @@ let rec number scanner =
 
 let rec identifier scanner =
   if not (is_alphanumeric (peek scanner)) then
-    let text = String.sub scanner.source scanner.start (scanner.current - scanner.start) in
+    let text = get_lexeme scanner in
     let token_type =
       match List.assoc_opt text keywords with
       | None -> Identifier
