@@ -104,7 +104,7 @@ let add_token scanner token_type =
                 lexeme = String.sub scanner.source scanner.start (scanner.current - scanner.start);
                 literal = Value.LoxNil;
                 line = scanner.line; } in
-  { scanner with tokens = scanner.tokens @ [token] }
+  { scanner with tokens = token :: scanner.tokens }
 
 
 let add_token_with_literal scanner token_type literal =
@@ -115,7 +115,7 @@ let add_token_with_literal scanner token_type literal =
                    | _ -> String.sub scanner.source (scanner.start) (scanner.current - scanner.start));
                 literal = literal;
                 line = scanner.line; } in
-  { scanner with tokens = scanner.tokens @ [token] }
+  { scanner with tokens = token :: scanner.tokens }
 
 
 let add_double_token scanner double_token single_token =
@@ -238,7 +238,7 @@ let scan_token scanner =
 let rec scan_tokens scanner =
   if is_at_end scanner then
     let token = { token_type = Eof; lexeme = ""; literal = Value.LoxNil; line = scanner.line } in
-    scanner.tokens @ [token]
+    List.rev (token :: scanner.tokens)
   else
     let scanner = { scanner with start = scanner.current } in
     scan_tokens (scan_token scanner)
