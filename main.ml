@@ -1,5 +1,6 @@
 let run source =
-  print_endline source
+  let scanner = Scanner.make_scanner source in
+  List.iter (fun token -> print_endline token.Scanner.lexeme) (Scanner.scan_tokens scanner)
 
 
 let read_lines name =
@@ -19,7 +20,7 @@ let read_file file_name =
 
 let run_prompt () =
   while true do
-    print_string ">";
+    print_string "> ";
     flush stdout;
     let line = input_line stdin in
     run line;
