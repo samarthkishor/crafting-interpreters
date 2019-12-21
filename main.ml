@@ -1,8 +1,12 @@
 let run source =
-  let scanner = Scanner.make_scanner source in
-  List.iter
-    (fun token -> print_endline token.Scanner.lexeme)
-    (Scanner.scan_tokens scanner)
+  try
+    Scanner.make_scanner source
+    |> Scanner.scan_tokens
+    |> Parser.make_parser
+    |> Parser.parse
+    |> Parser.string_of_expr
+    |> Printf.printf "%s\n"
+  with Parser.ParseError -> ()
 ;;
 
 let read_lines name =
