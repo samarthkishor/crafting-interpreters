@@ -5,3 +5,5 @@ type t =
   | LoxNumber of float
   | LoxString of string
   | LoxNil
+
+val string_of : t -> string
