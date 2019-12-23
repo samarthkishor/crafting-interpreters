@@ -41,6 +41,16 @@ let rec string_of_expr expr =
   | Unary e -> "(" ^ e.unary_operator.lexeme ^ " " ^ string_of_expr e.operand ^ ")"
 ;;
 
+type statement =
+  | Expression of expr
+  | Print of expr
+
+let rec string_of_statement stmt =
+  match stmt with
+  | Expression e -> string_of_expr e ^ ";"
+  | Print e -> "print " ^ string_of_expr e ^ ";"
+;;
+
 let make_parser tokens = {tokens = Array.of_list tokens; current = 0}
 let at_end parser = parser.current >= Array.length parser.tokens - 1
 let previous parser = parser.tokens.(parser.current - 1)
@@ -138,5 +148,21 @@ and unary parser =
   else primary parser
 ;;
 
+let make_statement (statement_type : expr -> statement) parser =
+  let expr = expression parser in
+  ignore (consume parser Semicolon "Expect ';' after value.");
+  statement_type expr
+;;
+
+let statement parser =
+  if matches parser [Print]
+  then make_statement (fun e -> Print e) parser
+  else make_statement (fun e -> Expression e) parser
+;;
+
 (* Parses the expression *)
-let parse parser = expression parser
+let rec parse ?(statements = []) parser =
+  if at_end parser
+  then List.rev statements
+  else parse ~statements:(statement parser :: statements) parser
+;;
