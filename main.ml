@@ -1,12 +1,9 @@
 let run source =
-  try
-    Scanner.make_scanner source
-    |> Scanner.scan_tokens
-    |> Parser.make_parser
-    |> Parser.parse
-    |> Parser.string_of_expr
-    |> Printf.printf "%s\n"
-  with Parser.ParseError -> ()
+  Scanner.make_scanner source
+  |> Scanner.scan_tokens
+  |> Parser.make_parser
+  |> Parser.parse
+  |> Interpreter.interpret
 ;;
 
 let read_lines name =
@@ -37,7 +34,8 @@ let run_prompt () =
 let run_file file_name =
   let file_contents = read_file file_name in
   run file_contents;
-  if !Error.had_error then exit 65
+  if !Error.had_error then exit 65;
+  if !Error.had_runtime_error then exit 70
 ;;
 
 let () =
