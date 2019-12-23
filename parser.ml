@@ -2,14 +2,10 @@
 (* based off https://github.com/isaacazuelos/crafting-interpreters-ocaml/blob/master/parser.ml *)
 
 type expr =
-  | Assign of assign
+  | Literal of literal
+  | Unary of unary
   | Binary of binary
   | Grouping of grouping
-  | Literal of literal
-  | Logical of binary
-  | Unary of unary
-  | Variable of Scanner.token
-  | Call of call
 
 and unary =
   { unary_operator : Scanner.token
@@ -26,23 +22,13 @@ and literal =
   { token : Scanner.token
   ; value : Value.t }
 
-and assign =
-  { name : Scanner.token
-  ; new_value : expr }
-
-and call =
-  { callee : expr
-  ; paren : Scanner.token
-  ; arguments : expr list }
-
 type parser =
   { tokens : Scanner.token array
   ; mutable current : int }
 
 let rec string_of_expr expr =
   match expr with
-  | Assign e -> "(" ^ e.name.lexeme ^ string_of_expr e.new_value ^ ")"
-  | Binary e | Logical e ->
+  | Binary e ->
     "("
     ^ string_of_expr e.left
     ^ " "
@@ -53,9 +39,6 @@ let rec string_of_expr expr =
   | Grouping e -> "(" ^ string_of_expr e.expression ^ ")"
   | Literal e -> Value.string_of e.value
   | Unary e -> "(" ^ e.unary_operator.lexeme ^ " " ^ string_of_expr e.operand ^ ")"
-  | Variable e -> e.lexeme
-  | Call e ->
-    e.paren.lexeme ^ "(" ^ String.concat ", " (List.map string_of_expr e.arguments) ^ ")"
 ;;
 
 let make_parser tokens = {tokens = Array.of_list tokens; current = 0}
@@ -128,7 +111,6 @@ and primary parser =
   | Nil -> Literal {token; value = LoxNil}
   | Number -> Literal {token; value = LoxNumber (float_of_string token.lexeme)}
   | String -> Literal {token; value = LoxString token.lexeme}
-  | Identifier -> Variable token
   | LeftParen ->
     let expr = expression parser in
     ignore (consume parser RightParen "Expect ')' after expression.");
