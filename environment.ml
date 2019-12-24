@@ -1,24 +1,32 @@
-type t = {values : (string, Value.t) Hashtbl.t}
+type t =
+  { values : (string, Value.t) Hashtbl.t
+  ; enclosing : t option }
 
-let init () = {values = Hashtbl.create 32}
+let init ?enclosing () = {values = Hashtbl.create 32; enclosing}
 
-let get_value environment (name : Scanner.token) =
+let rec get_value environment (name : Scanner.token) =
   match Hashtbl.find_opt environment.values name.lexeme with
   | None ->
-    raise
-    @@ Error.RuntimeError
-         {where = name.line; message = "Undefined variable '" ^ name.lexeme ^ "'."}
+    (match environment.enclosing with
+    | None ->
+      raise
+      @@ Error.RuntimeError
+           {where = name.line; message = "Undefined variable '" ^ name.lexeme ^ "'."}
+    | Some enclosing -> get_value enclosing name)
   | Some value -> value
 ;;
 
 let define environment name value = Hashtbl.add environment.values name value
 
-let assign environment (name : Scanner.token) value =
+let rec assign environment (name : Scanner.token) value =
   match Hashtbl.find_opt environment.values name.lexeme with
   | None ->
-    raise
-    @@ Error.RuntimeError
-         {where = name.line; message = "Undefined variable '" ^ name.lexeme ^ "'."}
+    (match environment.enclosing with
+    | None ->
+      raise
+      @@ Error.RuntimeError
+           {where = name.line; message = "Undefined variable '" ^ name.lexeme ^ "'."}
+    | Some enclosing -> assign enclosing name value)
   | Some _ ->
     Hashtbl.replace environment.values name.lexeme value;
     value

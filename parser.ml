@@ -53,12 +53,13 @@ type statement =
   | Expression of expr
   | Print of expr
   | VarDeclaration of var_declaration
+  | Block of statement list
 
 and var_declaration =
   { name : Scanner.token
   ; init : expr }
 
-let string_of_statement stmt =
+let rec string_of_statement stmt =
   match stmt with
   | Expression e -> string_of_expr e ^ ";"
   | Print e -> "print " ^ string_of_expr e ^ ";"
@@ -70,6 +71,8 @@ let string_of_statement stmt =
       | _ -> " = " ^ string_of_expr e.init ^ ";"
     in
     "var " ^ e.name.lexeme ^ right_side
+  | Block statements ->
+    "{" ^ (List.map string_of_statement statements |> String.concat "; ") ^ "}"
 ;;
 
 let make_parser tokens = {tokens = Array.of_list tokens; current = 0}
@@ -185,19 +188,20 @@ and unary parser =
   else primary parser
 ;;
 
-let make_statement (statement_type : expr -> statement) parser =
+(* Rule: statement → exprStmt | printStmt | block *)
+let rec statement parser =
+  if matches parser [Print]
+  then make_statement (fun e -> Print e) parser
+  else if matches parser [LeftBrace]
+  then Block (block parser)
+  else make_statement (fun e -> Expression e) parser
+
+and make_statement (statement_type : expr -> statement) parser =
   let expr = expression parser in
   ignore (consume parser Semicolon "Expect ';' after statement.");
   statement_type expr
-;;
 
-let statement parser =
-  if matches parser [Print]
-  then make_statement (fun e -> Print e) parser
-  else make_statement (fun e -> Expression e) parser
-;;
-
-let var_declaration parser =
+and var_declaration parser =
   let name = consume parser Identifier "Expect variable name." in
   let init =
     if matches parser [Equal]
@@ -206,9 +210,8 @@ let var_declaration parser =
   in
   ignore (consume parser Semicolon "Expect ';' after variable declaration");
   VarDeclaration {name; init}
-;;
 
-let declaration parser =
+and declaration parser =
   try
     if matches parser [Var]
     then Some (var_declaration parser)
@@ -216,6 +219,17 @@ let declaration parser =
   with ParseError ->
     synchronize parser;
     None
+
+and block ?(statements = []) parser =
+  (* avoid infinite loops if a '}' is missing by adding the at_end check *)
+  if at_end parser || check parser RightBrace
+  then
+    let _ = consume parser RightBrace "Expect '}' after block." in
+    List.rev statements
+  else
+    match declaration parser with
+    | None -> block ~statements parser
+    | Some statement -> block ~statements:(statement :: statements) parser
 ;;
 
 (* Parses the expression *)
