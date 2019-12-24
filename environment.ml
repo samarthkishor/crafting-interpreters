@@ -12,3 +12,14 @@ let get_value environment (name : Scanner.token) =
 ;;
 
 let define environment name value = Hashtbl.add environment.values name value
+
+let assign environment (name : Scanner.token) value =
+  match Hashtbl.find_opt environment.values name.lexeme with
+  | None ->
+    raise
+    @@ Error.RuntimeError
+         {where = name.line; message = "Undefined variable '" ^ name.lexeme ^ "'."}
+  | Some _ ->
+    Hashtbl.replace environment.values name.lexeme value;
+    value
+;;

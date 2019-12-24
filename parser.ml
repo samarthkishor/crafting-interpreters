@@ -7,6 +7,7 @@ type expr =
   | Binary of binary
   | Grouping of grouping
   | Variable of Scanner.token
+  | Assign of assign
 
 and unary =
   { unary_operator : Scanner.token
@@ -22,6 +23,10 @@ and grouping = {expression : expr}
 and literal =
   { token : Scanner.token
   ; value : Value.t }
+
+and assign =
+  { name : Scanner.token
+  ; assign_value : expr }
 
 type parser =
   { tokens : Scanner.token array
@@ -41,6 +46,7 @@ let rec string_of_expr expr =
   | Literal e -> Value.string_of e.value
   | Unary e -> "(" ^ e.unary_operator.lexeme ^ " " ^ string_of_expr e.operand ^ ")"
   | Variable e -> e.lexeme
+  | Assign e -> "(" ^ e.name.lexeme ^ " = " ^ string_of_expr e.assign_value ^ ")"
 ;;
 
 type statement =
@@ -144,8 +150,22 @@ and primary parser =
     Grouping {expression = expr}
   | _ -> raise (error token "Expect expression.")
 
-(* Rule: expression -> equality *)
-and expression parser = equality parser
+(* Rule: expression -> assignment *)
+and expression parser = assignment parser
+
+(* Rule: assignment -> IDENTIFIER '=' assignment | equality *)
+and assignment parser =
+  let expr = equality parser in
+  if matches parser [Equal]
+  then
+    let equals = previous parser in
+    (* assignment is right-associative *)
+    let value = assignment parser in
+    match expr with
+    | Variable name -> Assign {name; assign_value = value}
+    | _ -> raise (error equals "Invalid assignment target.")
+  else expr
+
 (* Rule: equality -> comparison ( ( "!=" | "==" ) comparison )* *)
 and equality parser = binary comparison [BangEqual; EqualEqual] parser
 (* Rule: comparison -> addition ( ( ">" | ">=" | "<" | "<=" ) addition )* *)
@@ -167,7 +187,7 @@ and unary parser =
 
 let make_statement (statement_type : expr -> statement) parser =
   let expr = expression parser in
-  ignore (consume parser Semicolon "Expect ';' after value.");
+  ignore (consume parser Semicolon "Expect ';' after statement.");
   statement_type expr
 ;;
 

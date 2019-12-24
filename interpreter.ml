@@ -70,6 +70,9 @@ let rec evaluate environment (expr : Parser.expr) =
     | EqualEqual -> LoxBool (is_equal left right)
     | _ -> LoxNil)
   | Variable token -> Environment.get_value environment token
+  | Assign expr ->
+    let value = evaluate environment expr.assign_value in
+    Environment.assign environment expr.name value
 ;;
 
 let interpret (statements : Parser.statement list) =
