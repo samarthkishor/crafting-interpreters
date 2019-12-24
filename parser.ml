@@ -45,7 +45,7 @@ type statement =
   | Expression of expr
   | Print of expr
 
-let rec string_of_statement stmt =
+let string_of_statement stmt =
   match stmt with
   | Expression e -> string_of_expr e ^ ";"
   | Print e -> "print " ^ string_of_expr e ^ ";"
