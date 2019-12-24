@@ -1,7 +1,9 @@
 #use "topfind";;
 
 (* hack to import all files as modules into utop *)
-#mod_use "error.ml";;
 #mod_use "value.ml";;
+#mod_use "error.ml";;
 #mod_use "scanner.ml";;
-#mod_use "expression.ml";;
+#mod_use "parser.ml";;
+#mod_use "environment.ml";;
+#mod_use "interpreter.ml";;
