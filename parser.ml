@@ -6,6 +6,7 @@ type expr =
   | Unary of unary
   | Binary of binary
   | Grouping of grouping
+  | Variable of Scanner.token
 
 and unary =
   { unary_operator : Scanner.token
@@ -39,16 +40,30 @@ let rec string_of_expr expr =
   | Grouping e -> "(" ^ string_of_expr e.expression ^ ")"
   | Literal e -> Value.string_of e.value
   | Unary e -> "(" ^ e.unary_operator.lexeme ^ " " ^ string_of_expr e.operand ^ ")"
+  | Variable e -> e.lexeme
 ;;
 
 type statement =
   | Expression of expr
   | Print of expr
+  | VarDeclaration of var_declaration
+
+and var_declaration =
+  { name : Scanner.token
+  ; init : expr }
 
 let string_of_statement stmt =
   match stmt with
   | Expression e -> string_of_expr e ^ ";"
   | Print e -> "print " ^ string_of_expr e ^ ";"
+  | VarDeclaration e ->
+    let right_side =
+      match e.init with
+      | Literal l ->
+        if l.value = LoxNil then ";" else " = " ^ string_of_expr e.init ^ ";"
+      | _ -> " = " ^ string_of_expr e.init ^ ";"
+    in
+    "var " ^ e.name.lexeme ^ right_side
 ;;
 
 let make_parser tokens = {tokens = Array.of_list tokens; current = 0}
@@ -112,7 +127,8 @@ let rec binary next_precedence token_types parser =
   !expr
 
 (* Rule: primary → NUMBER | STRING | "false" | "true" | "nil"
-                   | "(" expression ")" *)
+                   | "(" expression ")"
+                   | IDENTIFIER *)
 and primary parser =
   let token = advance parser in
   match token.token_type with
@@ -121,6 +137,7 @@ and primary parser =
   | Nil -> Literal {token; value = LoxNil}
   | Number -> Literal {token; value = LoxNumber (float_of_string token.lexeme)}
   | String -> Literal {token; value = LoxString token.lexeme}
+  | Identifier -> Variable token
   | LeftParen ->
     let expr = expression parser in
     ignore (consume parser RightParen "Expect ')' after expression.");
@@ -160,9 +177,33 @@ let statement parser =
   else make_statement (fun e -> Expression e) parser
 ;;
 
+let var_declaration parser =
+  let name = consume parser Identifier "Expect variable name." in
+  let init =
+    if matches parser [Equal]
+    then expression parser
+    else Literal {token = peek parser; value = LoxNil}
+  in
+  ignore (consume parser Semicolon "Expect ';' after variable declaration");
+  VarDeclaration {name; init}
+;;
+
+let declaration parser =
+  try
+    if matches parser [Var]
+    then Some (var_declaration parser)
+    else Some (statement parser)
+  with ParseError ->
+    synchronize parser;
+    None
+;;
+
 (* Parses the expression *)
 let rec parse ?(statements = []) parser =
   if at_end parser
   then List.rev statements
-  else parse ~statements:(statement parser :: statements) parser
+  else
+    match declaration parser with
+    | None -> parse ~statements parser
+    | Some statement -> parse ~statements:(statement :: statements) parser
 ;;
