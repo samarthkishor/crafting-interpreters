@@ -1,3 +1,5 @@
+type t = {mutable environment : Environment.t}
+
 let is_truthy value =
   match value with Value.LoxNil -> false | Value.LoxBool b -> b | _ -> true
 ;;
@@ -29,12 +31,12 @@ let binary_comparison operator left right =
   | v, _ -> raise @@ Error.TypeError {observed_type = type_of v; expected_type = Number}
 ;;
 
-let rec evaluate (expr : Parser.expr) =
+let rec evaluate environment (expr : Parser.expr) =
   match expr with
   | Literal e -> e.value
-  | Grouping e -> evaluate e.expression
+  | Grouping e -> evaluate environment e.expression
   | Unary e ->
-    let right = evaluate e.operand in
+    let right = evaluate environment e.operand in
     (match e.unary_operator.token_type with
     | Minus ->
       LoxNumber
@@ -46,8 +48,8 @@ let rec evaluate (expr : Parser.expr) =
     | Bang -> LoxBool (not (is_truthy right))
     | _ -> LoxNil)
   | Binary e ->
-    let left = evaluate e.left in
-    let right = evaluate e.right in
+    let left = evaluate environment e.left in
+    let right = evaluate environment e.right in
     (match e.binary_operator.token_type with
     | Minus -> binary_arithmetic ( -. ) left right
     | Slash -> binary_arithmetic ( /. ) left right
@@ -67,16 +69,28 @@ let rec evaluate (expr : Parser.expr) =
     | BangEqual -> LoxBool (not (is_equal left right))
     | EqualEqual -> LoxBool (is_equal left right)
     | _ -> LoxNil)
+  | Variable token -> Environment.get_value environment token
 ;;
 
 let interpret (statements : Parser.statement list) =
   try
+    let environment = Environment.init () in
     List.iter
       (fun statement ->
         match statement with
-        | Parser.Expression expression -> ignore (evaluate expression)
+        | Parser.Expression expression -> ignore (evaluate environment expression)
         | Parser.Print expression ->
-          evaluate expression |> Value.string_of |> Printf.printf "%s\n" )
+          evaluate environment expression |> Value.string_of |> Printf.printf "%s\n"
+        | VarDeclaration d ->
+          let value =
+            match d.init with
+            | Literal l ->
+              if l.value = LoxNil then Value.LoxNil else evaluate environment d.init
+            | _ -> evaluate environment d.init
+          in
+          Environment.define environment d.name.lexeme value )
       statements
-  with Error.TypeError error -> Error.report_runtime_error (Error.TypeError error)
+  with
+  | Error.TypeError error -> Error.report_runtime_error (Error.TypeError error)
+  | Error.RuntimeError error -> Error.report_runtime_error (Error.RuntimeError error)
 ;;
