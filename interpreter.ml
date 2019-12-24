@@ -69,7 +69,14 @@ let rec evaluate (expr : Parser.expr) =
     | _ -> LoxNil)
 ;;
 
-let interpret expression =
-  try evaluate expression |> Value.string_of |> Printf.printf "%s\n"
-  with Error.TypeError e -> Error.report_runtime_error (Error.TypeError e)
+let interpret (statements : Parser.statement list) =
+  try
+    List.iter
+      (fun statement ->
+        match statement with
+        | Parser.Expression expression -> ignore (evaluate expression)
+        | Parser.Print expression ->
+          evaluate expression |> Value.string_of |> Printf.printf "%s\n" )
+      statements
+  with Error.TypeError error -> Error.report_runtime_error (Error.TypeError error)
 ;;
