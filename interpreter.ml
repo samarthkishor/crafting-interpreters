@@ -73,6 +73,19 @@ let rec evaluate environment (expr : Parser.expr) =
   | Assign expr ->
     let value = evaluate environment expr.assign_value in
     Environment.assign environment expr.name value
+  | Logical expr ->
+    let left = evaluate environment expr.logical_left in
+    (* short-circuit `or` if left evaluates to true *)
+    if expr.operator.token_type = Scanner.Or
+    then
+      if is_truthy left
+      then left
+      else
+        evaluate environment expr.logical_right
+        (* short-circuit `and` if left evaluates to false *)
+    else if not (is_truthy left)
+    then left
+    else evaluate environment expr.logical_right
 ;;
 
 let rec evaluate_statement environment statement =
