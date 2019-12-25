@@ -1,4 +1,5 @@
 (* TODO Refactor this eventually to be purely functional *)
+(* TODO Fix parser error handling *)
 (* based off https://github.com/isaacazuelos/crafting-interpreters-ocaml/blob/master/parser.ml *)
 
 type expr =
@@ -140,17 +141,13 @@ let rec matches parser token_types =
     else matches parser ts
 ;;
 
-exception ParseError
-
-let error (token : Scanner.token) message =
-  if token.token_type = Eof
-  then Error.report token.line " at end" message
-  else Error.report token.line (" at '" ^ token.lexeme ^ "'") message;
-  ParseError
-;;
-
 let consume parser token_type message =
-  if check parser token_type then advance parser else raise (error (peek parser) message)
+  if check parser token_type
+  then advance parser
+  else
+    raise
+      (Error.ParseError
+         {line = (peek parser).line; lexeme = (peek parser).lexeme; message})
 ;;
 
 let synchronize parser =
@@ -162,7 +159,8 @@ let synchronize parser =
       match (peek parser).token_type with
       | Class | Fun | Var | For | If | While | Print | Return -> ()
       | _ -> ignore (advance parser)
-  done
+  done;
+  parser
 ;;
 
 (* Parses left associative binary expressions *)
@@ -201,7 +199,10 @@ and primary parser =
     let expr = expression parser in
     ignore (consume parser RightParen "Expect ')' after expression.");
     Grouping {expression = expr}
-  | _ -> raise (error token "Expect expression.")
+  | _ ->
+    raise
+      (Error.ParseError
+         {line = token.line; lexeme = token.lexeme; message = "Expect expression."})
 
 (* Rule: expression -> assignment *)
 and expression parser = assignment parser
@@ -216,7 +217,12 @@ and assignment parser =
     let value = assignment parser in
     match expr with
     | Variable name -> Assign {name; assign_value = value}
-    | _ -> raise (error equals "Invalid assignment target.")
+    | _ ->
+      raise
+        (Error.ParseError
+           { line = equals.line
+           ; lexeme = equals.lexeme
+           ; message = "Invalid assignment target." })
   else expr
 
 (* Rule: logical_or -> logical_and ( "or" logic_and )* *)
@@ -286,13 +292,10 @@ and var_declaration parser =
   VarDeclaration {name; init}
 
 and declaration parser =
-  try
-    if matches parser [Var]
-    then Some (var_declaration parser)
-    else Some (statement parser)
-  with ParseError ->
-    synchronize parser;
-    None
+  try if matches parser [Var] then var_declaration parser else statement parser
+  with Error.ParseError error ->
+    Error.report_parse_error error;
+    statement (synchronize parser)
 
 and block ?(statements = []) parser =
   (* avoid infinite loops if a '}' is missing by adding the at_end check *)
@@ -300,18 +303,12 @@ and block ?(statements = []) parser =
   then
     let _ = consume parser RightBrace "Expect '}' after block." in
     List.rev statements
-  else
-    match declaration parser with
-    | None -> block ~statements parser
-    | Some statement -> block ~statements:(statement :: statements) parser
+  else block ~statements:(declaration parser :: statements) parser
 ;;
 
 (* Parses the expression *)
 let rec parse ?(statements = []) parser =
   if at_end parser
   then List.rev statements
-  else
-    match declaration parser with
-    | None -> parse ~statements parser
-    | Some statement -> parse ~statements:(statement :: statements) parser
+  else parse ~statements:(declaration parser :: statements) parser
 ;;

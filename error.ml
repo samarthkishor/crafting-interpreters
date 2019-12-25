@@ -1,3 +1,10 @@
+(* NOTE can't use Scanner here because of cyclic dependencies *)
+
+type parse_error =
+  { line : int
+  ; lexeme : string
+  ; message : string }
+
 type runtime_error =
   { where : int
   ; message : string }
@@ -10,6 +17,7 @@ type error =
   | RuntimeError of runtime_error
   | TypeError of type_error
 
+exception ParseError of parse_error
 exception RuntimeError of runtime_error
 exception TypeError of type_error
 
@@ -20,6 +28,13 @@ let report line where message =
   Printf.eprintf "[line %d] Error %s: %s\n" line where message;
   flush stderr;
   had_error := true
+;;
+
+let report_parse_error error =
+  let {line; lexeme; message} = error in
+  if lexeme = "" (* for Eof *)
+  then report line "at end" message
+  else report line ("at '" ^ lexeme ^ "'") message
 ;;
 
 let report_runtime_error (error : error) =
