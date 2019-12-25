@@ -1,4 +1,4 @@
-type t = {mutable environment : Environment.t}
+type t = {environment : Environment.t}
 
 let is_truthy value =
   match value with Value.LoxNil -> false | Value.LoxBool b -> b | _ -> true
@@ -75,9 +75,9 @@ let rec evaluate environment (expr : Parser.expr) =
     Environment.assign environment expr.name value
 ;;
 
-let interpret (statements : Parser.statement list) =
+let rec interpret
+    ?(environment = Environment.init ()) (statements : Parser.statement list) =
   try
-    let environment = Environment.init () in
     List.iter
       (fun statement ->
         match statement with
@@ -91,7 +91,14 @@ let interpret (statements : Parser.statement list) =
               if l.value = LoxNil then Value.LoxNil else evaluate environment d.init
             | _ -> evaluate environment d.init
           in
-          Environment.define environment d.name.lexeme value )
+          Environment.define environment d.name.lexeme value
+        | Block block_statements ->
+          let previous_environment = environment in
+          let new_environment = Environment.init ~enclosing:previous_environment () in
+          (try interpret ~environment:new_environment block_statements with error ->
+             environment.enclosing <- Some previous_environment;
+             raise error);
+          environment.enclosing <- Some previous_environment )
       statements
   with
   | Error.TypeError error -> Error.report_runtime_error (Error.TypeError error)
