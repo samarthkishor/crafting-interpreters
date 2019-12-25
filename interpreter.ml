@@ -75,7 +75,7 @@ let rec evaluate environment (expr : Parser.expr) =
     Environment.assign environment expr.name value
 ;;
 
-let rec eval_statement environment statement =
+let rec evaluate_statement environment statement =
   match statement with
   | Parser.Expression expression -> ignore (evaluate environment expression)
   | Parser.Print expression ->
@@ -100,7 +100,9 @@ let rec eval_statement environment statement =
     environment.enclosing <- Some previous_environment
 
 and interpret ?(environment = Environment.init ()) (statements : Parser.statement list) =
-  try List.iter (fun statement -> eval_statement environment statement) statements with
+  try
+    List.iter (fun statement -> evaluate_statement environment statement) statements
+  with
   | Error.TypeError error -> Error.report_runtime_error (Error.TypeError error)
   | Error.RuntimeError error -> Error.report_runtime_error (Error.RuntimeError error)
 ;;
