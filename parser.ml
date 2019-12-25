@@ -53,7 +53,7 @@ let rec string_of_expr expr =
   | Literal e -> Value.string_of e.value
   | Unary e -> "(" ^ e.unary_operator.lexeme ^ " " ^ string_of_expr e.operand ^ ")"
   | Variable e -> e.lexeme
-  | Assign e -> "(" ^ e.name.lexeme ^ " = " ^ string_of_expr e.assign_value ^ ")"
+  | Assign e -> e.name.lexeme ^ " = " ^ string_of_expr e.assign_value
   | Logical e ->
     string_of_expr e.logical_left
     ^ " "
@@ -107,13 +107,14 @@ let rec string_of_statement stmt =
     in
     "var " ^ e.name.lexeme ^ right_side
   | Block statements ->
-    "{" ^ (List.map string_of_statement statements |> String.concat "; ") ^ "}"
+    "{" ^ (List.map string_of_statement statements |> String.concat " ") ^ "}"
   | WhileStatement s ->
-    "while ("
-    ^ string_of_expr s.while_condition
-    ^ ") {"
-    ^ string_of_statement s.body
-    ^ "}"
+    "while " ^ string_of_expr s.while_condition ^ string_of_statement s.body
+;;
+
+(* For debugging *)
+let print_statements statements =
+  List.iter (fun s -> string_of_statement s |> Printf.printf "%s\n") statements
 ;;
 
 let make_parser tokens = {tokens = Array.of_list tokens; current = 0}
