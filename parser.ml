@@ -8,6 +8,7 @@ type expr =
   | Grouping of grouping
   | Variable of Scanner.token
   | Assign of assign
+  | Logical of logical
 
 and unary =
   { unary_operator : Scanner.token
@@ -27,6 +28,11 @@ and literal =
 and assign =
   { name : Scanner.token
   ; assign_value : expr }
+
+and logical =
+  { logical_left : expr
+  ; operator : Scanner.token
+  ; logical_right : expr }
 
 type parser =
   { tokens : Scanner.token array
@@ -152,6 +158,16 @@ let rec binary next_precedence token_types parser =
   done;
   !expr
 
+(* Parses logical and and or *)
+and logical next_precedence token_type parser =
+  let expr = ref (next_precedence parser) in
+  while matches parser [token_type] do
+    let operator = previous parser in
+    let logical_right = next_precedence parser in
+    expr := Logical {logical_left = !expr; operator; logical_right}
+  done;
+  !expr
+
 (* Rule: primary → NUMBER | STRING | "false" | "true" | "nil"
                    | "(" expression ")"
                    | IDENTIFIER *)
@@ -173,9 +189,9 @@ and primary parser =
 (* Rule: expression -> assignment *)
 and expression parser = assignment parser
 
-(* Rule: assignment -> IDENTIFIER '=' assignment | equality *)
+(* Rule: assignment -> IDENTIFIER '=' assignment | logical_or *)
 and assignment parser =
-  let expr = equality parser in
+  let expr = logical_or parser in
   if matches parser [Equal]
   then
     let equals = previous parser in
@@ -186,6 +202,10 @@ and assignment parser =
     | _ -> raise (error equals "Invalid assignment target.")
   else expr
 
+(* Rule: logical_or -> logical_and ( "or" logic_and )* *)
+and logical_or parser = logical logical_and Or parser
+(* Rule: logical_and  → equality ( "and" equality )* *)
+and logical_and parser = logical equality And parser
 (* Rule: equality -> comparison ( ( "!=" | "==" ) comparison )* *)
 and equality parser = binary comparison [BangEqual; EqualEqual] parser
 (* Rule: comparison -> addition ( ( ">" | ">=" | "<" | "<=" ) addition )* *)
