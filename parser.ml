@@ -248,10 +248,12 @@ and unary parser =
   else primary parser
 ;;
 
-(* Rule: statement → exprStmt | ifStmt | printStmt | block *)
+(* Rule: statement → exprStmt | forStmt | ifStmt | printStmt | whileStmt | block *)
 let rec statement parser =
   (* TODO refactor this to use pattern-matching *)
-  if matches parser [If]
+  if matches parser [For]
+  then for_statement parser
+  else if matches parser [If]
   then if_statement parser
   else if matches parser [Print]
   then make_statement (fun e -> Print e) parser
@@ -275,6 +277,52 @@ and while_statement parser =
   let _ = consume parser RightParen "Expect ')' after condition." in
   let body = statement parser in
   WhileStatement {while_condition; body}
+
+and for_statement parser =
+  let _ = consume parser LeftParen "Expect '(' after 'for'." in
+  let initial =
+    if matches parser [Semicolon]
+    then None
+    else if matches parser [Var]
+    then Some (var_declaration parser)
+    else Some (make_statement (fun e -> Expression e) parser)
+  in
+  let condition =
+    if not (check parser Semicolon) then Some (expression parser) else None
+  in
+  let _ = consume parser Semicolon "Expect ';' after loop condition." in
+  let increment =
+    if not (check parser RightParen) then Some (expression parser) else None
+  in
+  let _ = consume parser RightParen "Expect ')' after for clauses." in
+  let body = ref @@ statement parser in
+  let () =
+    match increment with
+    | None -> ()
+    | Some inc ->
+      (match !body with
+      (* this prevents for (...) {...} to be de-sugared into while (...) {{...} ...} *)
+      (* which gets interpreted in an endless loop *)
+      | Block b ->
+        let new_block = b @ [Expression inc] in
+        body := Block new_block
+      | _ -> body := Block [!body; Expression inc])
+  in
+  let cond =
+    match condition with
+    | None ->
+      Literal
+        { token =
+            { token_type = True
+            ; lexeme = "true"
+            ; literal = LoxBool true
+            ; line = (peek parser).line }
+        ; value = LoxBool true }
+    | Some c -> c
+  in
+  let () = body := WhileStatement {while_condition = cond; body = !body} in
+  let () = match initial with None -> () | Some i -> body := Block [i; !body] in
+  !body
 
 and make_statement (statement_type : expr -> statement) parser =
   let expr = expression parser in
