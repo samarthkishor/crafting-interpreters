@@ -108,6 +108,10 @@ let rec evaluate_statement environment statement =
       | _ -> evaluate environment d.init
     in
     Environment.define environment d.name.lexeme value
+  | WhileStatement s ->
+    while is_truthy (evaluate environment s.while_condition) do
+      evaluate_statement environment s.body
+    done
   | Block block_statements ->
     let previous_environment = environment in
     let new_environment = Environment.init ~enclosing:previous_environment () in
