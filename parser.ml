@@ -53,6 +53,12 @@ let rec string_of_expr expr =
   | Unary e -> "(" ^ e.unary_operator.lexeme ^ " " ^ string_of_expr e.operand ^ ")"
   | Variable e -> e.lexeme
   | Assign e -> "(" ^ e.name.lexeme ^ " = " ^ string_of_expr e.assign_value ^ ")"
+  | Logical e ->
+    string_of_expr e.logical_left
+    ^ " "
+    ^ e.operator.lexeme
+    ^ " "
+    ^ string_of_expr e.logical_right
 ;;
 
 type statement =
