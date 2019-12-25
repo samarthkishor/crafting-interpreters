@@ -75,32 +75,32 @@ let rec evaluate environment (expr : Parser.expr) =
     Environment.assign environment expr.name value
 ;;
 
-let rec interpret
-    ?(environment = Environment.init ()) (statements : Parser.statement list) =
-  try
-    List.iter
-      (fun statement ->
-        match statement with
-        | Parser.Expression expression -> ignore (evaluate environment expression)
-        | Parser.Print expression ->
-          evaluate environment expression |> Value.string_of |> Printf.printf "%s\n"
-        | VarDeclaration d ->
-          let value =
-            match d.init with
-            | Literal l ->
-              if l.value = LoxNil then Value.LoxNil else evaluate environment d.init
-            | _ -> evaluate environment d.init
-          in
-          Environment.define environment d.name.lexeme value
-        | Block block_statements ->
-          let previous_environment = environment in
-          let new_environment = Environment.init ~enclosing:previous_environment () in
-          (try interpret ~environment:new_environment block_statements with error ->
-             environment.enclosing <- Some previous_environment;
-             raise error);
-          environment.enclosing <- Some previous_environment )
-      statements
-  with
+let rec eval_statement environment statement =
+  match statement with
+  | Parser.Expression expression -> ignore (evaluate environment expression)
+  | Parser.Print expression ->
+    evaluate environment expression |> Value.string_of |> Printf.printf "%s\n"
+  | VarDeclaration d ->
+    let value =
+      match d.init with
+      | Literal l ->
+        if l.value = LoxNil then Value.LoxNil else evaluate environment d.init
+      | _ -> evaluate environment d.init
+    in
+    Environment.define environment d.name.lexeme value
+  | Block block_statements ->
+    let previous_environment = environment in
+    let new_environment = Environment.init ~enclosing:previous_environment () in
+    (try
+       interpret ~environment:new_environment block_statements
+       (* restore the previous environment even if there was an error *)
+     with error ->
+       environment.enclosing <- Some previous_environment;
+       raise error);
+    environment.enclosing <- Some previous_environment
+
+and interpret ?(environment = Environment.init ()) (statements : Parser.statement list) =
+  try List.iter (fun statement -> eval_statement environment statement) statements with
   | Error.TypeError error -> Error.report_runtime_error (Error.TypeError error)
   | Error.RuntimeError error -> Error.report_runtime_error (Error.RuntimeError error)
 ;;
