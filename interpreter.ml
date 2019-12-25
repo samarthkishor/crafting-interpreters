@@ -78,6 +78,13 @@ let rec evaluate environment (expr : Parser.expr) =
 let rec evaluate_statement environment statement =
   match statement with
   | Parser.Expression expression -> ignore (evaluate environment expression)
+  | Parser.IfStatement s ->
+    if is_truthy (evaluate environment s.condition)
+    then evaluate_statement environment s.then_branch
+    else (
+      match s.else_branch with
+      | None -> ()
+      | Some branch -> evaluate_statement environment branch )
   | Parser.Print expression ->
     evaluate environment expression |> Value.string_of |> Printf.printf "%s\n"
   | VarDeclaration d ->
