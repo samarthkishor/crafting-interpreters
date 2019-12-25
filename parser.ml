@@ -66,6 +66,7 @@ type statement =
   | IfStatement of if_statement
   | Print of expr
   | VarDeclaration of var_declaration
+  | WhileStatement of while_statement
   | Block of statement list
 
 and if_statement =
@@ -76,6 +77,10 @@ and if_statement =
 and var_declaration =
   { name : Scanner.token
   ; init : expr }
+
+and while_statement =
+  { while_condition : expr
+  ; body : statement }
 
 let rec string_of_statement stmt =
   match stmt with
@@ -102,6 +107,12 @@ let rec string_of_statement stmt =
     "var " ^ e.name.lexeme ^ right_side
   | Block statements ->
     "{" ^ (List.map string_of_statement statements |> String.concat "; ") ^ "}"
+  | WhileStatement s ->
+    "while ("
+    ^ string_of_expr s.while_condition
+    ^ ") {"
+    ^ string_of_statement s.body
+    ^ "}"
 ;;
 
 let make_parser tokens = {tokens = Array.of_list tokens; current = 0}
@@ -238,6 +249,8 @@ let rec statement parser =
   then if_statement parser
   else if matches parser [Print]
   then make_statement (fun e -> Print e) parser
+  else if matches parser [While]
+  then while_statement parser
   else if matches parser [LeftBrace]
   then Block (block parser)
   else make_statement (fun e -> Expression e) parser
@@ -249,6 +262,13 @@ and if_statement parser =
   let then_branch = statement parser in
   let else_branch = if matches parser [Else] then Some (statement parser) else None in
   IfStatement {condition; then_branch; else_branch}
+
+and while_statement parser =
+  let _ = consume parser LeftParen "Expect '(' after 'while'." in
+  let while_condition = expression parser in
+  let _ = consume parser RightParen "Expect ')' after condition." in
+  let body = statement parser in
+  WhileStatement {while_condition; body}
 
 and make_statement (statement_type : expr -> statement) parser =
   let expr = expression parser in
