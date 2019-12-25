@@ -51,9 +51,15 @@ let rec string_of_expr expr =
 
 type statement =
   | Expression of expr
+  | IfStatement of if_statement
   | Print of expr
   | VarDeclaration of var_declaration
   | Block of statement list
+
+and if_statement =
+  { condition : expr
+  ; then_branch : statement
+  ; else_branch : statement option }
 
 and var_declaration =
   { name : Scanner.token
@@ -62,6 +68,17 @@ and var_declaration =
 let rec string_of_statement stmt =
   match stmt with
   | Expression e -> string_of_expr e ^ ";"
+  | IfStatement s ->
+    "if ("
+    ^ string_of_expr s.condition
+    ^ ") "
+    ^ "{ "
+    ^ string_of_statement s.then_branch
+    ^ "} "
+    ^
+    (match s.else_branch with
+    | None -> ""
+    | Some b -> " else { " ^ string_of_statement b ^ "}")
   | Print e -> "print " ^ string_of_expr e ^ ";"
   | VarDeclaration e ->
     let right_side =
@@ -188,13 +205,24 @@ and unary parser =
   else primary parser
 ;;
 
-(* Rule: statement → exprStmt | printStmt | block *)
+(* Rule: statement → exprStmt | ifStmt | printStmt | block *)
 let rec statement parser =
-  if matches parser [Print]
+  (* TODO refactor this to use pattern-matching *)
+  if matches parser [If]
+  then if_statement parser
+  else if matches parser [Print]
   then make_statement (fun e -> Print e) parser
   else if matches parser [LeftBrace]
   then Block (block parser)
   else make_statement (fun e -> Expression e) parser
+
+and if_statement parser =
+  let _ = consume parser LeftParen "Expect '(' after 'if'." in
+  let condition = expression parser in
+  let _ = consume parser RightParen "Expect ')' after 'if' condition." in
+  let then_branch = statement parser in
+  let else_branch = if matches parser [Else] then Some (statement parser) else None in
+  IfStatement {condition; then_branch; else_branch}
 
 and make_statement (statement_type : expr -> statement) parser =
   let expr = expression parser in
