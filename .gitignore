@@ -4,6 +4,6 @@
 tmp/
 
 .merlin
-_build
+_build/
 *.install
 _opam/
