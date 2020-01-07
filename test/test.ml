@@ -97,6 +97,30 @@ let test_parser_for_loop_infinite () =
     |> List.map Parser.string_of_statement)
 ;;
 
+let test_parser_function_no_args () =
+  let open Lox in
+  Alcotest.(check (list string))
+    "same lists"
+    [ "test();" ]
+    (Scanner.make_scanner "test();"
+    |> Scanner.scan_tokens
+    |> Parser.make_parser
+    |> Parser.parse
+    |> List.map Parser.string_of_statement)
+;;
+
+let test_parser_function_multiple_args () =
+  let open Lox in
+  Alcotest.(check (list string))
+    "same lists"
+    [ "test(v, (1 + 1), 5);" ]
+    (Scanner.make_scanner "test(v, 1 + 1, 5);"
+    |> Scanner.scan_tokens
+    |> Parser.make_parser
+    |> Parser.parse
+    |> List.map Parser.string_of_statement)
+;;
+
 let () =
   Alcotest.run
     "Lox tests"
@@ -115,6 +139,14 @@ let () =
             "parse infinite for loops"
             `Quick
             test_parser_for_loop_infinite
+        ; Alcotest.test_case
+            "parse function with no arguments"
+            `Quick
+            test_parser_function_no_args
+        ; Alcotest.test_case
+            "parse function with multiple arguments"
+            `Quick
+            test_parser_function_multiple_args
         ] )
     ]
 ;;
