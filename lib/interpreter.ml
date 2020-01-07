@@ -69,6 +69,27 @@ let rec evaluate environment (expr : Parser.expr) =
     | BangEqual -> LoxBool (not (is_equal left right))
     | EqualEqual -> LoxBool (is_equal left right)
     | _ -> LoxNil)
+  | Call c ->
+    let callee = evaluate environment c.callee in
+    let evaluated_args = List.map (fun arg -> evaluate environment arg) c.arguments in
+    (match callee with
+    | Value.LoxFunction f ->
+      if List.length evaluated_args = f.arity
+      then Value.call callee evaluated_args
+      else
+        raise
+        @@ Error.RuntimeError
+             { where = c.paren.line
+             ; message =
+                 Printf.sprintf
+                   "Expected %d arguments but got %d."
+                   f.arity
+                   (List.length evaluated_args)
+             }
+    | _ ->
+      raise
+      @@ Error.RuntimeError
+           { where = c.paren.line; message = "Can only call functions and classes." })
   | Variable token -> Environment.get_value environment token
   | Assign expr ->
     let value = evaluate environment expr.assign_value in

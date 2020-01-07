@@ -4,12 +4,25 @@ type t =
   | LoxNumber of float
   | LoxString of string
   | LoxNil
+  | LoxFunction of lox_function
+
+and lox_function =
+  { arity : int
+  ; callable : t list -> t
+  }
 
 type eval_type =
   | Bool
   | Number
   | String
   | Nil
+  | Function
+
+exception
+  TypeError of
+    { observed_type : eval_type
+    ; expected_type : eval_type
+    }
 
 let string_of value =
   match value with
@@ -18,6 +31,7 @@ let string_of value =
   | LoxNumber n -> Printf.sprintf "%g" n
   | LoxString s -> s
   | LoxNil -> "nil"
+  | LoxFunction _ -> "<function>"
 ;;
 
 let string_of_eval_type eval_type =
@@ -26,6 +40,7 @@ let string_of_eval_type eval_type =
   | Number -> "Number"
   | String -> "String"
   | Nil -> "Nil"
+  | Function -> "Function"
 ;;
 
 let type_of value =
@@ -34,4 +49,12 @@ let type_of value =
   | LoxNumber _ | LoxInt _ -> Number
   | LoxString _ -> String
   | LoxNil -> Nil
+  | LoxFunction _ -> Function
+;;
+
+let call value args =
+  match value with
+  | LoxFunction f -> f.callable args
+  | value ->
+    raise @@ TypeError { observed_type = type_of value; expected_type = Function }
 ;;
