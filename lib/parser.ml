@@ -117,7 +117,13 @@ let rec string_of_statement stmt =
   | Block statements ->
     "{" ^ (List.map string_of_statement statements |> String.concat " ") ^ "}"
   | WhileStatement s ->
-    "while " ^ string_of_expr s.while_condition ^ " " ^ string_of_statement s.body
+    (* make sure there are always parentheses around the while condition *)
+    let while_condition =
+      match s.while_condition with
+      | Literal _ -> "(" ^ string_of_expr s.while_condition ^ ")"
+      | _ -> string_of_expr s.while_condition
+    in
+    "while " ^ while_condition ^ " " ^ string_of_statement s.body
 ;;
 
 (* For debugging *)
@@ -305,22 +311,9 @@ and for_statement parser =
     if not (check parser RightParen) then Some (expression parser) else None
   in
   let _ = consume parser RightParen "Expect ')' after for clauses." in
-  let body = ref @@ statement parser in
-  let () =
-    match increment with
-    | None -> ()
-    | Some inc ->
-      (match !body with
-      (* this prevents for (...) {...} to be de-sugared into while (...) {{...} ...} *)
-      (* which gets interpreted in an endless loop *)
-      | Block b ->
-        let new_block = b @ [ Expression inc ] in
-        body := Block new_block
-      | _ -> body := Block [ !body; Expression inc ])
-  in
-  let cond =
-    match condition with
-    | None ->
+  let temp_body = statement parser in
+  let body =
+    let true_cond =
       Literal
         { token =
             { token_type = True
@@ -330,15 +323,52 @@ and for_statement parser =
             }
         ; value = LoxBool true
         }
-    | Some c -> c
+    in
+    match increment, condition, initial with
+    | None, None, None -> WhileStatement { while_condition = true_cond; body = temp_body }
+    | None, Some cond, None -> WhileStatement { while_condition = cond; body = temp_body }
+    | None, None, Some init ->
+      Block [ init; WhileStatement { while_condition = true_cond; body = temp_body } ]
+    | None, Some cond, Some init ->
+      Block [ init; WhileStatement { while_condition = cond; body = temp_body } ]
+    | Some inc, None, None ->
+      let block =
+        match temp_body with
+        | Block b ->
+          let new_block = b @ [ Expression inc ] in
+          Block new_block
+        | _ -> Block [ temp_body; Expression inc ]
+      in
+      WhileStatement { while_condition = true_cond; body = block }
+    | Some inc, Some cond, None ->
+      let block =
+        match temp_body with
+        | Block b ->
+          let new_block = b @ [ Expression inc ] in
+          Block new_block
+        | _ -> Block [ temp_body; Expression inc ]
+      in
+      WhileStatement { while_condition = cond; body = block }
+    | Some inc, None, Some init ->
+      let block =
+        match temp_body with
+        | Block b ->
+          let new_block = b @ [ Expression inc ] in
+          Block new_block
+        | _ -> Block [ temp_body; Expression inc ]
+      in
+      Block [ init; WhileStatement { while_condition = true_cond; body = block } ]
+    | Some inc, Some cond, Some init ->
+      let block =
+        match temp_body with
+        | Block b ->
+          let new_block = b @ [ Expression inc ] in
+          Block new_block
+        | _ -> Block [ temp_body; Expression inc ]
+      in
+      Block [ init; WhileStatement { while_condition = cond; body = block } ]
   in
-  let () = body := WhileStatement { while_condition = cond; body = !body } in
-  let () =
-    match initial with
-    | None -> ()
-    | Some i -> body := Block [ i; !body ]
-  in
-  !body
+  body
 
 and make_statement (statement_type : expr -> statement) parser =
   let expr = expression parser in
