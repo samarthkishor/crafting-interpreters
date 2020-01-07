@@ -3,6 +3,7 @@
 *.log
 tmp/
 
+.merlin
 _build
 *.install
 _opam/
