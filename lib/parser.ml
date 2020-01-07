@@ -83,6 +83,7 @@ type statement =
   | Expression of expr
   | IfStatement of if_statement
   | Print of expr
+  | FunctionDeclaration of function_declaration
   | VarDeclaration of var_declaration
   | WhileStatement of while_statement
   | Block of statement list
@@ -91,6 +92,12 @@ and if_statement =
   { condition : expr
   ; then_branch : statement
   ; else_branch : statement option
+  }
+
+and function_declaration =
+  { fun_name : Scanner.token
+  ; params : Scanner.token list
+  ; fun_body : statement list
   }
 
 and var_declaration =
@@ -118,6 +125,12 @@ let rec string_of_statement stmt =
     | None -> ""
     | Some b -> " else { " ^ string_of_statement b ^ "}")
   | Print e -> "print " ^ string_of_expr e ^ ";"
+  | FunctionDeclaration f ->
+    Printf.sprintf
+      "fun %s(%s) {%s}"
+      f.fun_name.lexeme
+      (String.concat ", " (List.map (fun (t : Scanner.token) -> t.lexeme) f.params))
+      (String.concat " " (List.map (fun s -> string_of_statement s) f.fun_body))
   | VarDeclaration e ->
     let right_side =
       match e.init with
@@ -411,6 +424,32 @@ and make_statement (statement_type : expr -> statement) parser =
   ignore (consume parser Semicolon "Expect ';' after statement.");
   statement_type expr
 
+(* Rule:
+ * funDecl → "fun" function
+ * function → IDENTIFIER "(" parameters? ")" block
+ * parameters → IDENTIFIER ( "," IDENTIFIER )* *)
+and function_declaration parser kind =
+  let name = consume parser Identifier (Printf.sprintf "Expect %s name" kind) in
+  let _ = consume parser LeftParen (Printf.sprintf "Expect '(' after %s name" kind) in
+  let rec add_parameters params =
+    if List.length params >= 255
+    then (
+      let () = Error.error (peek parser).line "Cannot have more than 255 parameters." in
+      [])
+    else if not (matches parser [ Comma ])
+    then List.rev params
+    else add_parameters (consume parser Identifier "Expect parameter name." :: params)
+  in
+  let params =
+    if not (check parser RightParen)
+    then add_parameters [ consume parser Identifier "Expect parameter name." ]
+    else []
+  in
+  let _ = consume parser RightParen "Expect ')' after parameters." in
+  let _ = consume parser LeftBrace ("Expect '{' before " ^ kind ^ " body.") in
+  let body = block parser in
+  FunctionDeclaration { fun_name = name; params; fun_body = body }
+
 and var_declaration parser =
   let name = consume parser Identifier "Expect variable name." in
   let init =
@@ -421,8 +460,17 @@ and var_declaration parser =
   ignore (consume parser Semicolon "Expect ';' after variable declaration");
   VarDeclaration { name; init }
 
+(* Rule: declaration → funDecl
+ *                   | varDecl
+ *                   | statement *)
 and declaration parser =
-  try if matches parser [ Var ] then var_declaration parser else statement parser with
+  try
+    if matches parser [ Fun ]
+    then function_declaration parser "function"
+    else if matches parser [ Var ]
+    then var_declaration parser
+    else statement parser
+  with
   | Error.ParseError error ->
     Error.report_parse_error error;
     statement (synchronize parser)
