@@ -89,7 +89,7 @@ let test_parser_for_loop_infinite () =
   let open Lox in
   Alcotest.(check (list string))
     "same lists"
-    [ "while true print (1 == 1);" ]
+    [ "while (true) print (1 == 1);" ]
     (Scanner.make_scanner "for (;;) print 1 == 1;"
     |> Scanner.scan_tokens
     |> Parser.make_parser
