@@ -1,11 +1,11 @@
 (* TODO Refactor this eventually to be purely functional *)
 (* TODO Fix parser error handling *)
-(* based off https://github.com/isaacazuelos/crafting-interpreters-ocaml/blob/master/parser.ml *)
 
 type expr =
   | Literal of literal
   | Unary of unary
   | Binary of binary
+  | Call of call
   | Grouping of grouping
   | Variable of Scanner.token
   | Assign of assign
@@ -20,6 +20,12 @@ and binary =
   { left : expr
   ; binary_operator : Scanner.token
   ; right : expr
+  }
+
+and call =
+  { callee : expr
+  ; paren : Scanner.token
+  ; arguments : expr list
   }
 
 and grouping = { expression : expr }
@@ -54,6 +60,11 @@ let rec string_of_expr expr =
     ^ e.binary_operator.lexeme
     ^ " "
     ^ string_of_expr e.right
+    ^ ")"
+  | Call c ->
+    string_of_expr c.callee
+    ^ "("
+    ^ String.concat ", " (List.map (fun arg -> string_of_expr arg) c.arguments)
     ^ ")"
   | Grouping e -> "(" ^ string_of_expr e.expression ^ ")"
   | Literal e -> Value.string_of e.value
@@ -254,14 +265,39 @@ and addition parser = binary multiplication [ Minus; Plus ] parser
 (* Rule: multiplication → unary ( ( "/" | "*" ) unary )* *)
 and multiplication parser = binary unary [ Slash; Star ] parser
 
-(* Rule: unary → ( "!" | "-" ) unary | primary *)
+(* Rule: unary → ( "!" | "-" ) unary | call *)
 and unary parser =
   if matches parser [ Bang; Minus ]
   then (
     let operator = previous parser in
     let operand = unary parser in
     Unary { unary_operator = operator; operand })
-  else primary parser
+  else call parser
+
+(* Rule: call → primary ( "(" arguments? ")" )*
+ *       arguments → expression ( "," expression )* *)
+and call parser =
+  let finish_call callee =
+    let rec add_args args =
+      if not (matches parser [ Comma ])
+      then List.rev args
+      else add_args (expression parser :: args)
+    in
+    let arguments =
+      if not (check parser RightParen) then add_args [ expression parser ] else []
+    in
+    (* warn if there are 255+ arguments to a function *)
+    let () =
+      if List.length arguments >= 255
+      then Error.error (peek parser).line "Function cannot have more than 255 arguments."
+    in
+    let paren = consume parser RightParen "Expect ')' after arguments." in
+    Call { callee; paren; arguments }
+  in
+  let rec loop expr =
+    if not (matches parser [ LeftParen ]) then expr else loop (finish_call expr)
+  in
+  loop (primary parser)
 ;;
 
 (* Rule: statement → exprStmt | forStmt | ifStmt | printStmt | whileStmt | block *)
