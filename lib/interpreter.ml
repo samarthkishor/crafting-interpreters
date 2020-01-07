@@ -1,12 +1,18 @@
-type t = {environment : Environment.t}
+type t = { environment : Environment.t }
 
 let is_truthy value =
-  match value with Value.LoxNil -> false | Value.LoxBool b -> b | _ -> true
+  match value with
+  | Value.LoxNil -> false
+  | Value.LoxBool b -> b
+  | _ -> true
 ;;
 
 let is_equal left right =
   let open Value in
-  match left, right with LoxNil, LoxNil -> true | LoxNil, _ -> false | l, r -> l = r
+  match left, right with
+  | LoxNil, LoxNil -> true
+  | LoxNil, _ -> false
+  | l, r -> l = r
 ;;
 
 let binary_arithmetic operator left right =
@@ -14,10 +20,10 @@ let binary_arithmetic operator left right =
   match left, right with
   | LoxNumber l, LoxNumber r -> LoxNumber (operator l r)
   | LoxNumber _, v ->
-    raise @@ Error.TypeError {observed_type = type_of v; expected_type = Number}
+    raise @@ Error.TypeError { observed_type = type_of v; expected_type = Number }
   | v, LoxNumber _ ->
-    raise @@ Error.TypeError {observed_type = type_of v; expected_type = Number}
-  | v, _ -> raise @@ Error.TypeError {observed_type = type_of v; expected_type = Number}
+    raise @@ Error.TypeError { observed_type = type_of v; expected_type = Number }
+  | v, _ -> raise @@ Error.TypeError { observed_type = type_of v; expected_type = Number }
 ;;
 
 let binary_comparison operator left right =
@@ -25,10 +31,10 @@ let binary_comparison operator left right =
   match left, right with
   | LoxNumber l, LoxNumber r -> LoxBool (operator l r)
   | LoxNumber _, v ->
-    raise @@ Error.TypeError {observed_type = type_of v; expected_type = Number}
+    raise @@ Error.TypeError { observed_type = type_of v; expected_type = Number }
   | v, LoxNumber _ ->
-    raise @@ Error.TypeError {observed_type = type_of v; expected_type = Number}
-  | v, _ -> raise @@ Error.TypeError {observed_type = type_of v; expected_type = Number}
+    raise @@ Error.TypeError { observed_type = type_of v; expected_type = Number }
+  | v, _ -> raise @@ Error.TypeError { observed_type = type_of v; expected_type = Number }
 ;;
 
 let rec evaluate environment (expr : Parser.expr) =
@@ -44,7 +50,8 @@ let rec evaluate environment (expr : Parser.expr) =
         | LoxNumber n -> -.n
         | value ->
           raise
-          @@ Error.TypeError {observed_type = Value.type_of value; expected_type = Number})
+          @@ Error.TypeError
+               { observed_type = Value.type_of value; expected_type = Number })
     | Bang -> LoxBool (not (is_truthy right))
     | _ -> LoxNil)
   | Binary e ->
@@ -59,9 +66,11 @@ let rec evaluate environment (expr : Parser.expr) =
       | LoxNumber _, LoxNumber _ -> binary_arithmetic ( +. ) left right
       | LoxString l, LoxString r -> LoxString (l ^ r)
       | LoxString _, v | v, LoxString _ ->
-        raise @@ Error.TypeError {observed_type = Value.type_of v; expected_type = String}
+        raise
+        @@ Error.TypeError { observed_type = Value.type_of v; expected_type = String }
       | v, _ ->
-        raise @@ Error.TypeError {observed_type = Value.type_of v; expected_type = String})
+        raise
+        @@ Error.TypeError { observed_type = Value.type_of v; expected_type = String })
     | Greater -> binary_comparison ( > ) left right
     | GreaterEqual -> binary_comparison ( >= ) left right
     | Less -> binary_comparison ( < ) left right
@@ -118,7 +127,7 @@ let rec evaluate_statement environment statement =
     else (
       match s.else_branch with
       | None -> ()
-      | Some branch -> evaluate_statement environment branch )
+      | Some branch -> evaluate_statement environment branch)
   | Parser.Print expression ->
     evaluate environment expression |> Value.string_of |> Printf.printf "%s\n"
   | VarDeclaration d ->
@@ -139,9 +148,10 @@ let rec evaluate_statement environment statement =
     (try
        interpret ~environment:new_environment block_statements
        (* restore the previous environment even if there was an error *)
-     with error ->
-       environment.enclosing <- Some previous_environment;
-       raise error);
+     with
+    | error ->
+      environment.enclosing <- Some previous_environment;
+      raise error);
     environment.enclosing <- Some previous_environment
 
 and interpret ?(environment = Environment.init ()) (statements : Parser.statement list) =
