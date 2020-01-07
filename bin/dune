@@ -1,0 +1,7 @@
+(executables
+ (names main)
+ (libraries lox))
+
+(install
+ (section bin)
+ (files (main.exe as lox)))

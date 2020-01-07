@@ -1,3 +1,0 @@
-(executable
- (name main)
- (link_flags -linkall))

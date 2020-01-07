@@ -1,0 +1,10 @@
+opam-version: "2.0"
+version: "1.0"
+maintainer: "samarthkishor1@gmail.com"
+authors: ["Samarth Kishor"]
+homepage: "https://github.com/samarthkishor/crafting-interpreters"
+bug-reports: "https://github.com/samarthkishor/crafting-interpreters/issues"
+license: "Unlicense"
+build: [
+  ["dune" "build" "-p" name "-j" jobs]
+]

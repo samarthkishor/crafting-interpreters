@@ -1,1 +1,5 @@
-(lang dune 1.6)
+(lang dune 2.0)
+(name lox-interpreter)
+(authors "Samarth Kishor")
+(maintainers "samarthkishor1@gmail.com")
+(license Unlicense)

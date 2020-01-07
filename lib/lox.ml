@@ -1,3 +1,10 @@
+(* Modules to expose from the Lox library *)
+module Value = Value
+module Error = Error
+module Scanner = Scanner
+module Parser = Parser
+module Interpreter = Interpreter
+
 let run source =
   Scanner.make_scanner source
   |> Scanner.scan_tokens
@@ -8,7 +15,10 @@ let run source =
 
 let read_lines name =
   let ic = open_in name in
-  let try_read () = try Some (input_line ic) with End_of_file -> None in
+  let try_read () =
+    try Some (input_line ic) with
+    | End_of_file -> None
+  in
   let rec loop acc =
     match try_read () with
     | Some s -> loop (s :: acc)
@@ -36,17 +46,4 @@ let run_file file_name =
   run file_contents;
   if !Error.had_error then exit 65;
   if !Error.had_runtime_error then exit 70
-;;
-
-let () =
-  let argc = Array.length Sys.argv in
-  if argc > 2
-  then (
-    print_endline "Usage: jlox [script]";
-    exit 64 )
-  else if argc = 2
-  then
-    let file_name = Sys.argv.(1) in
-    run_file file_name
-  else run_prompt ()
 ;;
