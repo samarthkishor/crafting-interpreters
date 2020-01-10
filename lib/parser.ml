@@ -83,6 +83,7 @@ type statement =
   | Expression of expr
   | IfStatement of if_statement
   | Print of expr
+  | ReturnStatement of return_statement
   | FunctionDeclaration of function_declaration
   | VarDeclaration of var_declaration
   | WhileStatement of while_statement
@@ -110,6 +111,11 @@ and while_statement =
   ; body : statement
   }
 
+and return_statement =
+  { keyword : Scanner.token
+  ; value : expr
+  }
+
 let rec string_of_statement stmt =
   match stmt with
   | Expression e -> string_of_expr e ^ ";"
@@ -125,6 +131,7 @@ let rec string_of_statement stmt =
     | None -> ""
     | Some b -> " else { " ^ string_of_statement b ^ "}")
   | Print e -> "print " ^ string_of_expr e ^ ";"
+  | ReturnStatement s -> "return " ^ string_of_expr s.value ^ ";"
   | FunctionDeclaration f ->
     Printf.sprintf
       "fun %s(%s) {%s}"
@@ -322,6 +329,8 @@ let rec statement parser =
   then if_statement parser
   else if matches parser [ Print ]
   then make_statement (fun e -> Print e) parser
+  else if matches parser [ Return ]
+  then return_statement parser
   else if matches parser [ While ]
   then while_statement parser
   else if matches parser [ LeftBrace ]
@@ -418,6 +427,17 @@ and for_statement parser =
       Block [ init; WhileStatement { while_condition = cond; body = block } ]
   in
   body
+
+(* Rule: returnStmt → "return" expression? ";" *)
+and return_statement parser =
+  let keyword = previous parser in
+  let value =
+    if not (check parser Semicolon)
+    then expression parser
+    else Literal { token = peek parser; value = Value.LoxNil }
+  in
+  let _ = consume parser Semicolon "Expect ; after return value." in
+  ReturnStatement { keyword; value }
 
 and make_statement (statement_type : expr -> statement) parser =
   let expr = expression parser in
