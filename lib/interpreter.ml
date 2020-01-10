@@ -118,7 +118,7 @@ let rec evaluate environment (expr : Parser.expr) =
     else evaluate environment expr.logical_right
 ;;
 
-let rec evaluate_statement environment statement =
+let rec evaluate_statement (environment : Environment.t) statement =
   match statement with
   | Parser.Expression expression -> ignore (evaluate environment expression)
   | Parser.IfStatement s ->
@@ -130,6 +130,31 @@ let rec evaluate_statement environment statement =
       | Some branch -> evaluate_statement environment branch)
   | Parser.Print expression ->
     evaluate environment expression |> Value.string_of |> Printf.printf "%s\n"
+  | FunctionDeclaration f ->
+    (* referenced  https://github.com/isaacazuelos/crafting-interpreters-ocaml/blob/master/interpreter.ml#L107 *)
+    let env = Environment.init ~enclosing:environment () in
+    let func_state : Environment.t =
+      { values = environment.values; enclosing = Some env }
+    in
+    let call_func args =
+      let new_env =
+        match func_state.enclosing with
+        | None -> Environment.init ()
+        | Some enclosing -> Environment.init ~enclosing ()
+      in
+      let () =
+        List.iter2
+          (fun (param : Scanner.token) arg -> Environment.define new_env param.lexeme arg)
+          f.params
+          args;
+        interpret ~environment:new_env f.fun_body
+      in
+      Value.LoxNil
+    in
+    Environment.define
+      func_state
+      f.fun_name.lexeme
+      (LoxFunction { arity = List.length f.params; callable = call_func })
   | VarDeclaration d ->
     let value =
       match d.init with
