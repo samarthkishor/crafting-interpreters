@@ -1,3 +1,5 @@
+(* Scanner tests *)
+
 let test_scanner_basic () =
   let open Lox.Scanner in
   Alcotest.(check (list string))
@@ -47,6 +49,8 @@ let test_scanner_advanced () =
     |> scan_tokens
     |> List.map (fun t -> t.lexeme))
 ;;
+
+(* Parser tests *)
 
 let test_parser_while_loop () =
   let open Lox in
@@ -145,6 +149,7 @@ let test_parser_function_declaration_multiple_params () =
     |> List.map Parser.string_of_statement)
 ;;
 
+(* Run tests *)
 let () =
   Alcotest.run
     "Lox tests"
