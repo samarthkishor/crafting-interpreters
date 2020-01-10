@@ -142,7 +142,7 @@ let test_parser_function_declaration_multiple_params () =
   Alcotest.(check (list string))
     "same lists"
     [ "fun test(v1, v2, v3) {print v1; print v2; print (v1 + v3);}" ]
-    (Scanner.make_scanner "fun test() { print v1; print v2; print v1 + v3; }"
+    (Scanner.make_scanner "fun test(v1, v2, v3) { print v1; print v2; print v1 + v3; }"
     |> Scanner.scan_tokens
     |> Parser.make_parser
     |> Parser.parse
