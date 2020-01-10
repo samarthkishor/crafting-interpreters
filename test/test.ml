@@ -121,6 +121,30 @@ let test_parser_function_multiple_args () =
     |> List.map Parser.string_of_statement)
 ;;
 
+let test_parser_function_declaration_no_params () =
+  let open Lox in
+  Alcotest.(check (list string))
+    "same lists"
+    [ "fun test() {do_something();}" ]
+    (Scanner.make_scanner "fun test() { do_something(); }"
+    |> Scanner.scan_tokens
+    |> Parser.make_parser
+    |> Parser.parse
+    |> List.map Parser.string_of_statement)
+;;
+
+let test_parser_function_declaration_multiple_params () =
+  let open Lox in
+  Alcotest.(check (list string))
+    "same lists"
+    [ "fun test(v1, v2, v3) {print v1; print v2; print (v1 + v3);}" ]
+    (Scanner.make_scanner "fun test() { print v1; print v2; print v1 + v3; }"
+    |> Scanner.scan_tokens
+    |> Parser.make_parser
+    |> Parser.parse
+    |> List.map Parser.string_of_statement)
+;;
+
 let () =
   Alcotest.run
     "Lox tests"
@@ -147,6 +171,14 @@ let () =
             "parse function with multiple arguments"
             `Quick
             test_parser_function_multiple_args
+        ; Alcotest.test_case
+            "parse function declaration with no parameters"
+            `Quick
+            test_parser_function_declaration_no_params
+        ; Alcotest.test_case
+            "parse function declaration with multiple parameters"
+            `Quick
+            test_parser_function_declaration_multiple_params
         ] )
     ]
 ;;
