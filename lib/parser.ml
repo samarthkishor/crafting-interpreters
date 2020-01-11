@@ -327,20 +327,26 @@ and call parser =
 
 (* Rule: statement → exprStmt | forStmt | ifStmt | printStmt | returnStmt | whileStmt | block *)
 let rec statement parser =
-  (* TODO refactor this to use pattern-matching *)
-  if matches parser [ For ]
-  then for_statement parser
-  else if matches parser [ If ]
-  then if_statement parser
-  else if matches parser [ Print ]
-  then make_statement (fun e -> Print e) parser
-  else if matches parser [ Return ]
-  then return_statement parser
-  else if matches parser [ While ]
-  then while_statement parser
-  else if matches parser [ LeftBrace ]
-  then Block (block parser)
-  else make_statement (fun e -> Expression e) parser
+  match (peek parser).token_type with
+  | For ->
+    let _ = advance parser in
+    for_statement parser
+  | If ->
+    let _ = advance parser in
+    if_statement parser
+  | Print ->
+    let _ = advance parser in
+    make_statement (fun e -> Print e) parser
+  | Return ->
+    let _ = advance parser in
+    return_statement parser
+  | While ->
+    let _ = advance parser in
+    while_statement parser
+  | LeftBrace ->
+    let _ = advance parser in
+    Block (block parser)
+  | _ -> make_statement (fun e -> Expression e) parser
 
 and if_statement parser =
   let _ = consume parser LeftParen "Expect '(' after 'if'." in
@@ -486,11 +492,14 @@ and var_declaration parser =
  *                   | statement *)
 and declaration parser =
   try
-    if matches parser [ Fun ]
-    then function_declaration parser "function"
-    else if matches parser [ Var ]
-    then var_declaration parser
-    else statement parser
+    match (peek parser).token_type with
+    | Fun ->
+      let _ = advance parser in
+      function_declaration parser "function"
+    | Var ->
+      let _ = advance parser in
+      var_declaration parser
+    | _ -> statement parser
   with
   | Error.ParseError error ->
     Error.report_parse_error error;
