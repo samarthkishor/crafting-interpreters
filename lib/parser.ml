@@ -113,7 +113,7 @@ and while_statement =
 
 and return_statement =
   { keyword : Scanner.token
-  ; value : expr
+  ; value : expr option
   }
 
 let rec string_of_statement stmt =
@@ -131,7 +131,12 @@ let rec string_of_statement stmt =
     | None -> ""
     | Some b -> " else { " ^ string_of_statement b ^ "}")
   | Print e -> "print " ^ string_of_expr e ^ ";"
-  | ReturnStatement s -> "return " ^ string_of_expr s.value ^ ";"
+  | ReturnStatement s ->
+    "return "
+    ^ (match s.value with
+      | None -> "nil"
+      | Some e -> string_of_expr e)
+    ^ ";"
   | FunctionDeclaration f ->
     Printf.sprintf
       "fun %s(%s) {%s}"
@@ -431,11 +436,7 @@ and for_statement parser =
 (* Rule: returnStmt → "return" expression? ";" *)
 and return_statement parser =
   let keyword = previous parser in
-  let value =
-    if not (check parser Semicolon)
-    then expression parser
-    else Literal { token = peek parser; value = Value.LoxNil }
-  in
+  let value = if not (check parser Semicolon) then Some (expression parser) else None in
   let _ = consume parser Semicolon "Expect ; after return value." in
   ReturnStatement { keyword; value }
 
