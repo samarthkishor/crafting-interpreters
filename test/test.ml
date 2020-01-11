@@ -149,6 +149,34 @@ let test_parser_function_declaration_multiple_params () =
     |> List.map Parser.string_of_statement)
 ;;
 
+(* Interpreter tests *)
+
+(* Utility function to execute a Unix command *)
+(* Source: https://rosettacode.org/wiki/Execute_a_system_command#OCaml *)
+let string_of_unix_command cmd =
+  let ic, oc = Unix.open_process cmd in
+  let buf = Buffer.create 16 in
+  (try
+     while true do
+       Buffer.add_channel buf ic 1
+     done
+   with
+  | End_of_file -> ());
+  let _ = Unix.close_process (ic, oc) in
+  Buffer.contents buf |> String.trim
+;;
+
+(* NOTE I can't figure out how to capture stdout into a string, so instead I read
+ * from files and compare the results of running the lox file with the expected
+ * file. Alcotest tests execute in the directory $PROJECT_ROOT/_build/default/test *)
+let test_interpreter test_name _ =
+  Alcotest.(check string)
+    "same string"
+    (Lox.read_file @@ Printf.sprintf "../../../test/test_files/test_%s.expected" test_name)
+    (string_of_unix_command
+    @@ Printf.sprintf "../bin/main.exe ../../../test/test_files/test_%s.lox" test_name)
+;;
+
 (* Run tests *)
 let () =
   Alcotest.run
@@ -184,6 +212,16 @@ let () =
             "parse function declaration with multiple parameters"
             `Quick
             test_parser_function_declaration_multiple_params
+        ] )
+    ; ( "interpreter tests"
+      , [ Alcotest.test_case
+            "interpret recursive function"
+            `Slow
+            (test_interpreter "fibonacci")
+        ; Alcotest.test_case
+            "interpret simple closure"
+            `Slow
+            (test_interpreter "simple_closure")
         ] )
     ]
 ;;
