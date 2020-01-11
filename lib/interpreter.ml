@@ -120,17 +120,18 @@ let rec evaluate environment (expr : Parser.expr) =
     else evaluate environment expr.logical_right
 ;;
 
-let rec evaluate_statement (environment : Environment.t) statement =
+let rec evaluate_statement (environment : Environment.t) (statement : Parser.statement) =
   match statement with
-  | Parser.Expression expression -> ignore (evaluate environment expression)
-  | Parser.IfStatement s ->
+  | Expression expression -> ignore (evaluate environment expression)
+  | IfStatement s ->
     if is_truthy (evaluate environment s.condition)
     then evaluate_statement environment s.then_branch
     else (
       match s.else_branch with
       | None -> ()
       | Some branch -> evaluate_statement environment branch)
-  | Parser.Print expression ->
+  | Print expression ->
+    Environment.print_environment environment;
     evaluate environment expression |> Value.string_of |> Printf.printf "%s\n"
   | ReturnStatement s ->
     let return_value =
