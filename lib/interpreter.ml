@@ -1,5 +1,7 @@
 type t = { environment : Environment.t }
 
+exception Return of Value.t
+
 let is_truthy value =
   match value with
   | Value.LoxNil -> false
@@ -130,6 +132,13 @@ let rec evaluate_statement (environment : Environment.t) statement =
       | Some branch -> evaluate_statement environment branch)
   | Parser.Print expression ->
     evaluate environment expression |> Value.string_of |> Printf.printf "%s\n"
+  | ReturnStatement s ->
+    let return_value =
+      match s.value with
+      | None -> Value.LoxNil
+      | Some e -> evaluate environment e
+    in
+    raise @@ Return return_value
   | FunctionDeclaration f ->
     (* referenced  https://github.com/isaacazuelos/crafting-interpreters-ocaml/blob/master/interpreter.ml#L107 *)
     let env = Environment.init ~enclosing:environment () in
@@ -142,14 +151,15 @@ let rec evaluate_statement (environment : Environment.t) statement =
         | None -> Environment.init ()
         | Some enclosing -> Environment.init ~enclosing ()
       in
-      let () =
-        List.iter2
-          (fun (param : Scanner.token) arg -> Environment.define new_env param.lexeme arg)
-          f.params
-          args;
-        interpret ~environment:new_env f.fun_body
-      in
-      Value.LoxNil
+      List.iter2
+        (fun (param : Scanner.token) arg -> Environment.define new_env param.lexeme arg)
+        f.params
+        args;
+      try
+        interpret ~environment:new_env f.fun_body;
+        Value.LoxNil
+      with
+      | Return value -> value
     in
     Environment.define
       func_state
