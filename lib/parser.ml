@@ -320,7 +320,7 @@ and call parser =
   loop (primary parser)
 ;;
 
-(* Rule: statement → exprStmt | forStmt | ifStmt | printStmt | whileStmt | block *)
+(* Rule: statement → exprStmt | forStmt | ifStmt | printStmt | returnStmt | whileStmt | block *)
 let rec statement parser =
   (* TODO refactor this to use pattern-matching *)
   if matches parser [ For ]
