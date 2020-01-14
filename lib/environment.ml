@@ -1,6 +1,6 @@
 type t =
   { values : (string, Value.t) Hashtbl.t
-  ; mutable enclosing : t option
+  ; enclosing : t option
   }
 
 let init ?enclosing () = { values = Hashtbl.create 32; enclosing }

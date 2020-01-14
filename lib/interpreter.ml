@@ -1,5 +1,10 @@
 type t = { environment : Environment.t }
 
+type state =
+  { state_env : Environment.t
+  ; globals : Environment.t
+  }
+
 exception Return of Value.t
 
 let is_truthy value =
@@ -39,54 +44,59 @@ let binary_comparison operator left right =
   | v, _ -> raise @@ Error.TypeError { observed_type = type_of v; expected_type = Number }
 ;;
 
-let rec evaluate environment (expr : Parser.expr) =
+let rec evaluate (state : state) (expr : Parser.expr) : state * Value.t =
+  (* Environment.print_environment state.state_env; *)
   match expr with
-  | Literal e -> e.value
-  | Grouping e -> evaluate environment e.expression
+  | Literal e -> state, e.value
+  | Grouping e -> evaluate state e.expression
   | Unary e ->
-    let right = evaluate environment e.operand in
+    let new_state, right = evaluate state e.operand in
     (match e.unary_operator.token_type with
     | Minus ->
-      LoxNumber
-        (match right with
-        | LoxNumber n -> -.n
-        | value ->
-          raise
-          @@ Error.TypeError
-               { observed_type = Value.type_of value; expected_type = Number })
-    | Bang -> LoxBool (not (is_truthy right))
-    | _ -> LoxNil)
+      ( new_state
+      , LoxNumber
+          (match right with
+          | LoxNumber n -> -.n
+          | value ->
+            raise
+            @@ Error.TypeError
+                 { observed_type = Value.type_of value; expected_type = Number }) )
+    | Bang -> new_state, LoxBool (not (is_truthy right))
+    | _ -> new_state, LoxNil)
   | Binary e ->
-    let left = evaluate environment e.left in
-    let right = evaluate environment e.right in
+    let new_state, left = evaluate state e.left in
+    let new_state, right = evaluate new_state e.right in
     (match e.binary_operator.token_type with
-    | Minus -> binary_arithmetic ( -. ) left right
-    | Slash -> binary_arithmetic ( /. ) left right
-    | Star -> binary_arithmetic ( *. ) left right
+    | Minus -> new_state, binary_arithmetic ( -. ) left right
+    | Slash -> new_state, binary_arithmetic ( /. ) left right
+    | Star -> new_state, binary_arithmetic ( *. ) left right
     | Plus ->
       (match left, right with
-      | LoxNumber _, LoxNumber _ -> binary_arithmetic ( +. ) left right
-      | LoxString l, LoxString r -> LoxString (l ^ r)
+      | LoxNumber _, LoxNumber _ -> new_state, binary_arithmetic ( +. ) left right
+      | LoxString l, LoxString r -> new_state, LoxString (l ^ r)
       | LoxString _, v | v, LoxString _ ->
         raise
         @@ Error.TypeError { observed_type = Value.type_of v; expected_type = String }
       | v, _ ->
         raise
         @@ Error.TypeError { observed_type = Value.type_of v; expected_type = String })
-    | Greater -> binary_comparison ( > ) left right
-    | GreaterEqual -> binary_comparison ( >= ) left right
-    | Less -> binary_comparison ( < ) left right
-    | LessEqual -> binary_comparison ( <= ) left right
-    | BangEqual -> LoxBool (not (is_equal left right))
-    | EqualEqual -> LoxBool (is_equal left right)
-    | _ -> LoxNil)
+    | Greater -> new_state, binary_comparison ( > ) left right
+    | GreaterEqual -> new_state, binary_comparison ( >= ) left right
+    | Less -> new_state, binary_comparison ( < ) left right
+    | LessEqual -> new_state, binary_comparison ( <= ) left right
+    | BangEqual -> new_state, LoxBool (not (is_equal left right))
+    | EqualEqual -> new_state, LoxBool (is_equal left right)
+    | _ -> new_state, LoxNil)
   | Call c ->
-    let callee = evaluate environment c.callee in
-    let evaluated_args = List.map (fun arg -> evaluate environment arg) c.arguments in
+    let new_state, callee = evaluate state c.callee in
+    let evaluated_args =
+      List.map (fun arg -> evaluate new_state arg) c.arguments
+      |> List.map (fun (_, v) -> v)
+    in
     (match callee with
     | Value.LoxFunction f ->
       if List.length evaluated_args = f.arity
-      then Value.call callee evaluated_args
+      then new_state, Value.call callee evaluated_args
       else
         raise
         @@ Error.RuntimeError
@@ -101,99 +111,122 @@ let rec evaluate environment (expr : Parser.expr) =
       raise
       @@ Error.RuntimeError
            { where = c.paren.line; message = "Can only call functions and classes." })
-  | Variable token -> Environment.get_value environment token
+  | Variable token ->
+    (* Environment.print_environment state.state_env; *)
+    state, Environment.get_value state.state_env token
   | Assign expr ->
-    let value = evaluate environment expr.assign_value in
-    Environment.assign environment expr.name value
+    let new_state, value = evaluate state expr.assign_value in
+    new_state, Environment.assign state.state_env expr.name value
   | Logical expr ->
-    let left = evaluate environment expr.logical_left in
+    let new_state, left = evaluate state expr.logical_left in
     (* short-circuit `or` if left evaluates to true *)
     if expr.operator.token_type = Scanner.Or
     then
       if is_truthy left
-      then left
+      then new_state, left
       else
-        evaluate environment expr.logical_right
+        evaluate state expr.logical_right
         (* short-circuit `and` if left evaluates to false *)
     else if not (is_truthy left)
-    then left
-    else evaluate environment expr.logical_right
+    then new_state, left
+    else evaluate state expr.logical_right
 ;;
 
-let rec evaluate_statement (environment : Environment.t) (statement : Parser.statement) =
+let rec evaluate_statement (state : state) (statement : Parser.statement) : state =
+  Environment.print_environment state.state_env;
   match statement with
-  | Expression expression -> ignore (evaluate environment expression)
+  | Expression expression ->
+    let new_state, _ = evaluate state expression in
+    new_state
   | IfStatement s ->
-    if is_truthy (evaluate environment s.condition)
-    then evaluate_statement environment s.then_branch
+    let new_state, result = evaluate state s.condition in
+    if is_truthy result
+    then evaluate_statement new_state s.then_branch
     else (
       match s.else_branch with
-      | None -> ()
-      | Some branch -> evaluate_statement environment branch)
+      | None -> new_state
+      | Some branch -> evaluate_statement new_state branch)
   | Print expression ->
-    Environment.print_environment environment;
-    evaluate environment expression |> Value.string_of |> Printf.printf "%s\n"
+    let new_state, result = evaluate state expression in
+    let () = result |> Value.string_of |> Printf.printf "%s\n" in
+    new_state
   | ReturnStatement s ->
     let return_value =
       match s.value with
       | None -> Value.LoxNil
-      | Some e -> evaluate environment e
+      | Some e ->
+        let _, v = evaluate state e in
+        v
     in
     raise @@ Return return_value
   | FunctionDeclaration f ->
-    (* referenced  https://github.com/isaacazuelos/crafting-interpreters-ocaml/blob/master/interpreter.ml#L107 *)
-    let env = Environment.init ~enclosing:environment () in
-    let func_state : Environment.t =
-      { values = environment.values; enclosing = Some env }
-    in
+    let env = Environment.init ~enclosing:state.state_env () in
+    let func_state = { globals = state.globals; state_env = env } in
     let call_func args =
-      let new_env =
-        match func_state.enclosing with
-        | None -> Environment.init ()
-        | Some enclosing -> Environment.init ~enclosing ()
-      in
       List.iter2
-        (fun (param : Scanner.token) arg -> Environment.define new_env param.lexeme arg)
+        (fun (param : Scanner.token) arg ->
+          Environment.define func_state.state_env param.lexeme arg)
         f.params
         args;
       try
-        interpret ~environment:new_env f.fun_body;
+        let _ = interpret ~state:func_state f.fun_body in
         Value.LoxNil
       with
       | Return value -> value
     in
     Environment.define
-      func_state
+      state.state_env
       f.fun_name.lexeme
-      (LoxFunction { arity = List.length f.params; callable = call_func })
+      (LoxFunction { arity = List.length f.params; callable = call_func });
+    func_state
   | VarDeclaration d ->
-    let value =
+    let new_state, value =
       match d.init with
       | Literal l ->
-        if l.value = LoxNil then Value.LoxNil else evaluate environment d.init
-      | _ -> evaluate environment d.init
+        if l.value = LoxNil then state, Value.LoxNil else evaluate state d.init
+      | _ -> evaluate state d.init
     in
-    Environment.define environment d.name.lexeme value
-  | WhileStatement s ->
-    while is_truthy (evaluate environment s.while_condition) do
-      evaluate_statement environment s.body
-    done
+    Environment.define new_state.state_env d.name.lexeme value;
+    new_state
+  | WhileStatement statement ->
+    let s, v = evaluate state statement.while_condition in
+    let new_state, value = ref s, ref v in
+    while is_truthy !value do
+      new_state := evaluate_statement state statement.body
+    done;
+    !new_state
   | Block block_statements ->
-    let previous_environment = environment in
-    let new_environment = Environment.init ~enclosing:previous_environment () in
+    let previous_environment = state.state_env in
+    let new_environment = Environment.init ~enclosing:state.state_env () in
     (try
-       interpret ~environment:new_environment block_statements
-       (* restore the previous environment even if there was an error *)
+       print_endline "PREV ENV";
+       Environment.print_environment previous_environment;
+       let eval_state =
+         interpret ~state:{ state with state_env = new_environment } block_statements
+       in
+       print_endline "END BLOCK";
+       Environment.print_environment previous_environment;
+       { eval_state with state_env = previous_environment }
      with
-    | error ->
-      environment.enclosing <- Some previous_environment;
-      raise error);
-    environment.enclosing <- Some previous_environment
+    | _ ->
+      (* restore the previous environment even if there was an error *)
+      { state with state_env = previous_environment })
 
-and interpret ?(environment = Environment.init ()) (statements : Parser.statement list) =
+and interpret
+    ?(state = { globals = Environment.init (); state_env = Environment.init () })
+    (statements : Parser.statement list)
+    : state
+  =
   try
-    List.iter (fun statement -> evaluate_statement environment statement) statements
+    List.fold_left
+      (fun new_state statement -> evaluate_statement new_state statement)
+      state
+      statements
   with
-  | Error.TypeError error -> Error.report_runtime_error (Error.TypeError error)
-  | Error.RuntimeError error -> Error.report_runtime_error (Error.RuntimeError error)
+  | Error.TypeError error ->
+    Error.report_runtime_error (Error.TypeError error);
+    state
+  | Error.RuntimeError error ->
+    Error.report_runtime_error (Error.RuntimeError error);
+    state
 ;;
