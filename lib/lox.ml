@@ -11,6 +11,7 @@ let run source =
   |> Parser.make_parser
   |> Parser.parse
   |> Interpreter.interpret
+  |> ignore
 ;;
 
 let read_lines name =
