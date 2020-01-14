@@ -219,9 +219,17 @@ let () =
             `Slow
             (test_interpreter "fibonacci")
         ; Alcotest.test_case
+            "interpret program with global variables"
+            `Slow
+            (test_interpreter "globals")
+        ; Alcotest.test_case
             "interpret simple closure"
             `Slow
             (test_interpreter "simple_closure")
+          (* ; Alcotest.test_case
+           *     "interpret closure with globals"
+           *     `Slow
+           *     (test_interpreter "closure_globals") *)
         ] )
     ]
 ;;
