@@ -216,7 +216,12 @@ let rec evaluate_statement (state : state) (statement : Parser.statement) : stat
        in
        { eval_state with state_env = previous_environment }
      with
-    | _ ->
+    | error ->
+      (* NOTE can't raise the error here because the function still has to return *)
+      (match error with
+      | LoxError.TypeError e -> LoxError.report_runtime_error (LoxError.TypeError e)
+      | LoxError.RuntimeError e -> LoxError.report_runtime_error (LoxError.RuntimeError e)
+      | _ -> ());
       (* restore the previous environment even if there was an error *)
       { state with state_env = previous_environment })
 
