@@ -26,13 +26,13 @@ let run_prompt () =
     (match line with
     | None -> ()
     | Some l -> run l);
-    Error.had_error := false
+    LoxError.had_error := false
   done
 ;;
 
 let run_file file_name =
   let file_contents = read_file file_name in
   run file_contents;
-  if !Error.had_error then Caml.exit 65;
-  if !Error.had_runtime_error then Caml.exit 70
+  if !LoxError.had_error then Caml.exit 65;
+  if !LoxError.had_runtime_error then Caml.exit 70
 ;;

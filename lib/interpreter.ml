@@ -151,7 +151,7 @@ let rec evaluate_statement (state : state) (statement : Parser.statement) : stat
       | Some branch -> evaluate_statement new_state branch)
   | Print expression ->
     let new_state, result = evaluate state expression in
-    let () = result |> Value.string_of |> Printf.printf "%s\n" in
+    let () = result |> Value.string_of |> Stdio.printf "%s\n" in
     new_state
   | ReturnStatement s ->
     let return_value =
@@ -166,11 +166,20 @@ let rec evaluate_statement (state : state) (statement : Parser.statement) : stat
     let env = Environment.init ~enclosing:state.state_env () in
     let func_state = { globals = state.globals; state_env = env } in
     let call_func args =
-      List.iter2
-        ~f:(fun (param : Scanner.token) arg ->
-          Environment.define func_state.state_env param.lexeme arg)
-        f.params
-        args;
+      (match
+         List.iter2
+           ~f:(fun (param : Scanner.token) arg ->
+             Environment.define func_state.state_env param.lexeme arg)
+           f.params
+           args
+       with
+      | Ok _ -> ()
+      | Unequal_lengths ->
+        raise
+        @@ LoxError.RuntimeError
+             { where = f.fun_name.line
+             ; message = "Unequal number of parameters and arguments applied to function."
+             });
       try
         let _ = interpret ~state:func_state f.fun_body in
         Value.LoxNil
@@ -221,7 +230,7 @@ and interpret
   try
     List.fold_left
       ~f:(fun new_state statement -> evaluate_statement new_state statement)
-      state
+      ~init:state
       statements
   with
   | LoxError.TypeError error ->
