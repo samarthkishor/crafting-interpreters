@@ -10,3 +10,6 @@
 #mod_use "parser.ml";;
 #mod_use "environment.ml";;
 #mod_use "interpreter.ml";;
+
+(* pretty-print Environment.t when tracing *)
+#install_printer Environment.pp;;

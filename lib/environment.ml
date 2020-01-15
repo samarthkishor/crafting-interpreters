@@ -4,13 +4,11 @@ module Values = struct
   type t = (string, Value.t) Hashtbl.t
 
   let pp ppf values =
-    Caml.Format.print_newline ();
-    Caml.Format.open_hovbox 0;
+    Caml.Format.open_hovbox 1;
     Caml.Format.print_cut ();
     Hashtbl.iteri values ~f:(fun ~key ~data ->
-        Caml.Format.fprintf ppf "@[<hov 1>%s: %s@ @]" key (Value.string_of data));
-    Caml.Format.close_box ();
-    Caml.Format.print_newline ()
+        Caml.Format.fprintf ppf "@[<hov 2>%s: %s@ @]" key (Value.string_of data));
+    Caml.Format.close_box ()
   ;;
 end
 

@@ -49,7 +49,6 @@ let binary_comparison operator left right =
 ;;
 
 let rec evaluate (state : state) (expr : Parser.expr) : state * Value.t =
-  (* Environment.print_environment state.state_env; *)
   match expr with
   | Literal e -> state, e.value
   | Grouping e -> evaluate state e.expression
