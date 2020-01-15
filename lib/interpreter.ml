@@ -21,7 +21,7 @@ let is_equal left right =
   match left, right with
   | LoxNil, LoxNil -> true
   | LoxNil, _ -> false
-  | l, r -> l = r
+  | l, r -> Value.equal_eval_type (Value.type_of l) (Value.type_of r)
 ;;
 
 let binary_arithmetic operator left right =
@@ -124,7 +124,7 @@ let rec evaluate (state : state) (expr : Parser.expr) : state * Value.t =
   | Logical expr ->
     let new_state, left = evaluate state expr.logical_left in
     (* short-circuit `or` if left evaluates to true *)
-    if expr.operator.token_type = Scanner.Or
+    if Scanner.equal_token_type expr.operator.token_type Scanner.Or
     then
       if is_truthy left
       then new_state, left
@@ -186,7 +186,9 @@ let rec evaluate_statement (state : state) (statement : Parser.statement) : stat
     let new_state, value =
       match d.init with
       | Literal l ->
-        if l.value = LoxNil then state, Value.LoxNil else evaluate state d.init
+        if Value.equal_eval_type (Value.type_of l.value) (Value.type_of LoxNil)
+        then state, Value.LoxNil
+        else evaluate state d.init
       | _ -> evaluate state d.init
     in
     Environment.define new_state.state_env d.name.lexeme value;

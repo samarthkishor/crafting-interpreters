@@ -42,6 +42,7 @@ type token_type =
   | Var
   | While
   | Eof
+[@@deriving eq]
 
 type token =
   { token_type : token_type

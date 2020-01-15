@@ -12,7 +12,7 @@ and lox_function =
   { arity : int
   ; callable : t list -> t
   }
-[@@deriving show, sexp]
+[@@deriving show]
 
 type eval_type =
   | Bool
@@ -20,6 +20,7 @@ type eval_type =
   | String
   | Nil
   | Function
+[@@deriving eq]
 
 exception
   TypeError of
