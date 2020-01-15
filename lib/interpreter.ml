@@ -115,9 +115,7 @@ let rec evaluate (state : state) (expr : Parser.expr) : state * Value.t =
       raise
       @@ LoxError.RuntimeError
            { where = c.paren.line; message = "Can only call functions and classes." })
-  | Variable token ->
-    (* Environment.print_environment state.state_env; *)
-    state, Environment.get_value state.state_env token
+  | Variable token -> state, Environment.get_value state.state_env token
   | Assign expr ->
     let new_state, value = evaluate state expr.assign_value in
     new_state, Environment.assign state.state_env expr.name value
