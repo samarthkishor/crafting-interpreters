@@ -207,7 +207,8 @@ let rec evaluate_statement (state : state) (statement : Parser.statement) : stat
     done;
     !new_state
   | Block block_statements ->
-    let previous_environment = state.state_env in
+    (* need to copy the Environment because it's passed by reference *)
+    let previous_environment = Environment.copy state.state_env in
     let new_environment = Environment.init ~enclosing:state.state_env () in
     (try
        let eval_state =

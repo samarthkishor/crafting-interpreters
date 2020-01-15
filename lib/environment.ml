@@ -3,6 +3,8 @@ open Base
 module Values = struct
   type t = (string, Value.t) Hashtbl.t
 
+  let copy values = Hashtbl.copy values
+
   let pp ppf values =
     Caml.Format.open_hovbox 1;
     Caml.Format.print_cut ();
@@ -51,4 +53,13 @@ let rec assign environment (name : Scanner.token) value =
     Hashtbl.remove environment.values name.lexeme;
     Hashtbl.add_exn environment.values ~key:name.lexeme ~data:value;
     value
+;;
+
+let rec copy environment =
+  { values = Values.copy environment.values
+  ; enclosing =
+      (match environment.enclosing with
+      | None -> None
+      | Some e -> Some (copy e))
+  }
 ;;
