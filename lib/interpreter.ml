@@ -230,7 +230,7 @@ and interpret
     : state
   =
   try
-    List.fold_left
+    List.fold
       ~f:(fun new_state statement -> evaluate_statement new_state statement)
       ~init:state
       statements
