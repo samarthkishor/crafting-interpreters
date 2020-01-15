@@ -1,2 +1,4 @@
 (library
- (public_name lox))
+ (public_name lox)
+ (libraries base stdio fmt)
+ (preprocess (pps ppx_deriving.show ppx_sexp_conv)))

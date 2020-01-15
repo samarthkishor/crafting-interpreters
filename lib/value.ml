@@ -1,3 +1,5 @@
+open Base
+
 type t =
   | LoxBool of bool
   | LoxInt of int
@@ -10,6 +12,7 @@ and lox_function =
   { arity : int
   ; callable : t list -> t
   }
+[@@deriving show, sexp]
 
 type eval_type =
   | Bool
@@ -26,7 +29,7 @@ exception
 
 let string_of value =
   match value with
-  | LoxBool b -> string_of_bool b
+  | LoxBool b -> Bool.to_string b
   | LoxInt i -> Printf.sprintf "%d" i
   | LoxNumber n -> Printf.sprintf "%g" n
   | LoxString s -> s

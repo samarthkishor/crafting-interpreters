@@ -8,3 +8,11 @@ license: "Unlicense"
 build: [
   ["dune" "build" "-p" name "-j" jobs]
 ]
+depends: [
+  "dune" {>= "2.0"}
+  "ocaml"
+  "base"
+  "ppx_deriving"
+  "fmt"
+  "alcotest" {test}
+]

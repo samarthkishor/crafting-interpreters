@@ -197,7 +197,7 @@ let consume parser token_type message =
   then advance parser
   else
     raise
-      (Error.ParseError
+      (LoxError.ParseError
          { line = (peek parser).line; lexeme = (peek parser).lexeme; message })
 ;;
 
@@ -252,7 +252,7 @@ and primary parser =
     Grouping { expression = expr }
   | _ ->
     raise
-      (Error.ParseError
+      (LoxError.ParseError
          { line = token.line; lexeme = token.lexeme; message = "Expect expression." })
 
 (* Rule: expression -> assignment *)
@@ -270,7 +270,7 @@ and assignment parser =
     | Variable name -> Assign { name; assign_value = value }
     | _ ->
       raise
-        (Error.ParseError
+        (LoxError.ParseError
            { line = equals.line
            ; lexeme = equals.lexeme
            ; message = "Invalid assignment target."
@@ -314,7 +314,8 @@ and call parser =
     (* warn if there are 255+ arguments to a function *)
     let () =
       if List.length arguments >= 255
-      then Error.error (peek parser).line "Function cannot have more than 255 arguments."
+      then
+        LoxError.error (peek parser).line "Function cannot have more than 255 arguments."
     in
     let paren = consume parser RightParen "Expect ')' after arguments." in
     Call { callee; paren; arguments }
@@ -461,7 +462,9 @@ and function_declaration parser kind =
   let rec add_parameters params =
     if List.length params >= 255
     then (
-      let () = Error.error (peek parser).line "Cannot have more than 255 parameters." in
+      let () =
+        LoxError.error (peek parser).line "Cannot have more than 255 parameters."
+      in
       [])
     else if not (matches parser [ Comma ])
     then List.rev params
@@ -501,8 +504,8 @@ and declaration parser =
       var_declaration parser
     | _ -> statement parser
   with
-  | Error.ParseError error ->
-    Error.report_parse_error error;
+  | LoxError.ParseError error ->
+    LoxError.report_parse_error error;
     statement (synchronize parser)
 
 and block ?(statements = []) parser =

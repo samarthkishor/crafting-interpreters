@@ -47,14 +47,16 @@ type token =
   { token_type : token_type
   ; lexeme : string
   ; literal : Value.t
-  ; line : int }
+  ; line : int
+  }
 
 type scanner =
   { source : string
   ; tokens : token list
   ; start : int
   ; current : int
-  ; line : int }
+  ; line : int
+  }
 
 let keywords =
   [ "and", And
@@ -72,12 +74,13 @@ let keywords =
   ; "this", This
   ; "true", True
   ; "var", Var
-  ; "while", While ]
+  ; "while", While
+  ]
 ;;
 
-let make_scanner source = {source; tokens = []; start = 0; current = 0; line = 1}
+let make_scanner source = { source; tokens = []; start = 0; current = 0; line = 1 }
 let is_at_end scanner = scanner.current >= String.length scanner.source
-let advance_scanner scanner = {scanner with current = scanner.current + 1}
+let advance_scanner scanner = { scanner with current = scanner.current + 1 }
 
 let get_char scanner =
   if scanner.current > String.length scanner.source
@@ -95,14 +98,15 @@ let add_token scanner token_type =
     ; (* NOTE String.sub is weird in OCaml... see documentation *)
       lexeme = get_lexeme scanner
     ; literal = Value.LoxNil
-    ; line = scanner.line }
+    ; line = scanner.line
+    }
   in
-  {scanner with tokens = token :: scanner.tokens}
+  { scanner with tokens = token :: scanner.tokens }
 ;;
 
 let add_token_with_literal scanner token_type literal =
-  let token = {token_type; lexeme = get_lexeme scanner; literal; line = scanner.line} in
-  {scanner with tokens = token :: scanner.tokens}
+  let token = { token_type; lexeme = get_lexeme scanner; literal; line = scanner.line } in
+  { scanner with tokens = token :: scanner.tokens }
 ;;
 
 let add_double_token scanner double_token single_token =
@@ -125,19 +129,19 @@ let add_comment scanner =
   | None -> add_token scanner Slash
   | Some c ->
     if c = '/'
-    then
+    then (
       let rec comment_out scanner =
         if is_at_end scanner || peek scanner = '\n'
         then scanner
         else scanner |> advance_scanner |> comment_out
       in
-      comment_out scanner
+      comment_out scanner)
     else add_token scanner Slash
 ;;
 
 let rec consume_string scanner =
   if peek scanner = '"' && not (is_at_end scanner)
-  then
+  then (
     let scanner = advance_scanner scanner in
     let literal =
       Value.LoxString
@@ -146,11 +150,11 @@ let rec consume_string scanner =
            (scanner.start + 1)
            (scanner.current - scanner.start - 1))
     in
-    add_token_with_literal scanner String literal
+    add_token_with_literal scanner String literal)
   else if is_at_end scanner
   then (
-    Error.error scanner.line "Unterminated String.";
-    scanner )
+    LoxError.error scanner.line "Unterminated String.";
+    scanner)
   else scanner |> advance_scanner |> consume_string
 ;;
 
@@ -160,25 +164,30 @@ let is_alphanumeric c = is_digit c || is_alpha c
 
 let rec number scanner =
   if not (is_digit (peek scanner) || peek scanner = '.')
-  then
+  then (
     let value = get_lexeme scanner in
-    let num = try Some (float_of_string value) with _ -> None in
+    let num =
+      try Some (float_of_string value) with
+      | _ -> None
+    in
     match num with
     | None ->
-      Error.error scanner.line "Invalid Number.";
+      LoxError.error scanner.line "Invalid Number.";
       scanner
-    | Some n -> add_token_with_literal scanner Number (Value.LoxNumber n)
+    | Some n -> add_token_with_literal scanner Number (Value.LoxNumber n))
   else scanner |> advance_scanner |> number
 ;;
 
 let rec identifier scanner =
   if not (is_alphanumeric (peek scanner))
-  then
+  then (
     let text = get_lexeme scanner in
     let token_type =
-      match List.assoc_opt text keywords with None -> Identifier | Some t -> t
+      match List.assoc_opt text keywords with
+      | None -> Identifier
+      | Some t -> t
     in
-    add_token scanner token_type
+    add_token scanner token_type)
   else scanner |> advance_scanner |> identifier
 ;;
 
@@ -204,23 +213,23 @@ let scan_token scanner =
     | '>' -> add_double_token scanner GreaterEqual Greater
     | '/' -> add_comment scanner
     | ' ' | '\r' | '\t' -> scanner
-    | '\n' -> {scanner with line = scanner.line + 1}
+    | '\n' -> { scanner with line = scanner.line + 1 }
     | '"' -> consume_string scanner
     | c when is_digit c -> number scanner
     | c when is_alpha c -> identifier scanner
     | _ ->
-      Error.error scanner.line "Unexpected Character.";
+      LoxError.error scanner.line "Unexpected Character.";
       scanner)
 ;;
 
 let rec scan_tokens scanner =
   if is_at_end scanner
-  then
+  then (
     let token =
-      {token_type = Eof; lexeme = ""; literal = Value.LoxNil; line = scanner.line}
+      { token_type = Eof; lexeme = ""; literal = Value.LoxNil; line = scanner.line }
     in
-    List.rev (token :: scanner.tokens)
-  else
-    let scanner = {scanner with start = scanner.current} in
-    scan_tokens (scan_token scanner)
+    List.rev (token :: scanner.tokens))
+  else (
+    let scanner = { scanner with start = scanner.current } in
+    scan_tokens (scan_token scanner))
 ;;

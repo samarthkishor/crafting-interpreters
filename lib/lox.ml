@@ -1,3 +1,5 @@
+open Base
+
 (* Modules to expose from the Lox library *)
 module Value = Value
 module Error = Error
@@ -14,30 +16,16 @@ let run source =
   |> ignore
 ;;
 
-let read_lines name =
-  let ic = open_in name in
-  let try_read () =
-    try Some (input_line ic) with
-    | End_of_file -> None
-  in
-  let rec loop acc =
-    match try_read () with
-    | Some s -> loop (s :: acc)
-    | None ->
-      close_in ic;
-      List.rev acc
-  in
-  loop []
-;;
-
-let read_file file_name = String.concat "\n" (read_lines file_name)
+let read_file file_name = String.concat (Stdio.In_channel.read_lines file_name) ~sep:"\n"
 
 let run_prompt () =
   while true do
-    print_string "> ";
-    flush stdout;
-    let line = input_line stdin in
-    run line;
+    Stdio.printf "> ";
+    Stdio.Out_channel.flush Stdio.stdout;
+    let line = Stdio.In_channel.input_line Stdio.stdin in
+    (match line with
+    | None -> ()
+    | Some l -> run l);
     Error.had_error := false
   done
 ;;
@@ -45,6 +33,6 @@ let run_prompt () =
 let run_file file_name =
   let file_contents = read_file file_name in
   run file_contents;
-  if !Error.had_error then exit 65;
-  if !Error.had_runtime_error then exit 70
+  if !Error.had_error then Caml.exit 65;
+  if !Error.had_runtime_error then Caml.exit 70
 ;;

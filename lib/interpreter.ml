@@ -1,3 +1,5 @@
+open Base
+
 type t = { environment : Environment.t }
 
 type state =
@@ -27,10 +29,11 @@ let binary_arithmetic operator left right =
   match left, right with
   | LoxNumber l, LoxNumber r -> LoxNumber (operator l r)
   | LoxNumber _, v ->
-    raise @@ Error.TypeError { observed_type = type_of v; expected_type = Number }
+    raise @@ LoxError.TypeError { observed_type = type_of v; expected_type = Number }
   | v, LoxNumber _ ->
-    raise @@ Error.TypeError { observed_type = type_of v; expected_type = Number }
-  | v, _ -> raise @@ Error.TypeError { observed_type = type_of v; expected_type = Number }
+    raise @@ LoxError.TypeError { observed_type = type_of v; expected_type = Number }
+  | v, _ ->
+    raise @@ LoxError.TypeError { observed_type = type_of v; expected_type = Number }
 ;;
 
 let binary_comparison operator left right =
@@ -38,10 +41,11 @@ let binary_comparison operator left right =
   match left, right with
   | LoxNumber l, LoxNumber r -> LoxBool (operator l r)
   | LoxNumber _, v ->
-    raise @@ Error.TypeError { observed_type = type_of v; expected_type = Number }
+    raise @@ LoxError.TypeError { observed_type = type_of v; expected_type = Number }
   | v, LoxNumber _ ->
-    raise @@ Error.TypeError { observed_type = type_of v; expected_type = Number }
-  | v, _ -> raise @@ Error.TypeError { observed_type = type_of v; expected_type = Number }
+    raise @@ LoxError.TypeError { observed_type = type_of v; expected_type = Number }
+  | v, _ ->
+    raise @@ LoxError.TypeError { observed_type = type_of v; expected_type = Number }
 ;;
 
 let rec evaluate (state : state) (expr : Parser.expr) : state * Value.t =
@@ -59,7 +63,7 @@ let rec evaluate (state : state) (expr : Parser.expr) : state * Value.t =
           | LoxNumber n -> -.n
           | value ->
             raise
-            @@ Error.TypeError
+            @@ LoxError.TypeError
                  { observed_type = Value.type_of value; expected_type = Number }) )
     | Bang -> new_state, LoxBool (not (is_truthy right))
     | _ -> new_state, LoxNil)
@@ -76,22 +80,22 @@ let rec evaluate (state : state) (expr : Parser.expr) : state * Value.t =
       | LoxString l, LoxString r -> new_state, LoxString (l ^ r)
       | LoxString _, v | v, LoxString _ ->
         raise
-        @@ Error.TypeError { observed_type = Value.type_of v; expected_type = String }
+        @@ LoxError.TypeError { observed_type = Value.type_of v; expected_type = String }
       | v, _ ->
         raise
-        @@ Error.TypeError { observed_type = Value.type_of v; expected_type = String })
-    | Greater -> new_state, binary_comparison ( > ) left right
-    | GreaterEqual -> new_state, binary_comparison ( >= ) left right
-    | Less -> new_state, binary_comparison ( < ) left right
-    | LessEqual -> new_state, binary_comparison ( <= ) left right
+        @@ LoxError.TypeError { observed_type = Value.type_of v; expected_type = String })
+    | Greater -> new_state, binary_comparison Float.( > ) left right
+    | GreaterEqual -> new_state, binary_comparison Float.( >= ) left right
+    | Less -> new_state, binary_comparison Float.( < ) left right
+    | LessEqual -> new_state, binary_comparison Float.( <= ) left right
     | BangEqual -> new_state, LoxBool (not (is_equal left right))
     | EqualEqual -> new_state, LoxBool (is_equal left right)
     | _ -> new_state, LoxNil)
   | Call c ->
     let new_state, callee = evaluate state c.callee in
     let evaluated_args =
-      List.map (fun arg -> evaluate new_state arg) c.arguments
-      |> List.map (fun (_, v) -> v)
+      List.map ~f:(fun arg -> evaluate new_state arg) c.arguments
+      |> List.map ~f:(fun (_, v) -> v)
     in
     (match callee with
     | Value.LoxFunction f ->
@@ -99,7 +103,7 @@ let rec evaluate (state : state) (expr : Parser.expr) : state * Value.t =
       then new_state, Value.call callee evaluated_args
       else
         raise
-        @@ Error.RuntimeError
+        @@ LoxError.RuntimeError
              { where = c.paren.line
              ; message =
                  Printf.sprintf
@@ -109,7 +113,7 @@ let rec evaluate (state : state) (expr : Parser.expr) : state * Value.t =
              }
     | _ ->
       raise
-      @@ Error.RuntimeError
+      @@ LoxError.RuntimeError
            { where = c.paren.line; message = "Can only call functions and classes." })
   | Variable token ->
     (* Environment.print_environment state.state_env; *)
@@ -133,7 +137,6 @@ let rec evaluate (state : state) (expr : Parser.expr) : state * Value.t =
 ;;
 
 let rec evaluate_statement (state : state) (statement : Parser.statement) : state =
-  Environment.print_environment state.state_env;
   match statement with
   | Expression expression ->
     let new_state, _ = evaluate state expression in
@@ -164,7 +167,7 @@ let rec evaluate_statement (state : state) (statement : Parser.statement) : stat
     let func_state = { globals = state.globals; state_env = env } in
     let call_func args =
       List.iter2
-        (fun (param : Scanner.token) arg ->
+        ~f:(fun (param : Scanner.token) arg ->
           Environment.define func_state.state_env param.lexeme arg)
         f.params
         args;
@@ -199,13 +202,9 @@ let rec evaluate_statement (state : state) (statement : Parser.statement) : stat
     let previous_environment = state.state_env in
     let new_environment = Environment.init ~enclosing:state.state_env () in
     (try
-       print_endline "PREV ENV";
-       Environment.print_environment previous_environment;
        let eval_state =
          interpret ~state:{ state with state_env = new_environment } block_statements
        in
-       print_endline "END BLOCK";
-       Environment.print_environment previous_environment;
        { eval_state with state_env = previous_environment }
      with
     | _ ->
@@ -219,14 +218,14 @@ and interpret
   =
   try
     List.fold_left
-      (fun new_state statement -> evaluate_statement new_state statement)
+      ~f:(fun new_state statement -> evaluate_statement new_state statement)
       state
       statements
   with
-  | Error.TypeError error ->
-    Error.report_runtime_error (Error.TypeError error);
+  | LoxError.TypeError error ->
+    LoxError.report_runtime_error (LoxError.TypeError error);
     state
-  | Error.RuntimeError error ->
-    Error.report_runtime_error (Error.RuntimeError error);
+  | LoxError.RuntimeError error ->
+    LoxError.report_runtime_error (LoxError.RuntimeError error);
     state
 ;;
