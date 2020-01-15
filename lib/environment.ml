@@ -37,7 +37,9 @@ let rec get_value environment (name : Scanner.token) =
 ;;
 
 let define environment name value =
-  Hashtbl.add_exn environment.values ~key:name ~data:value
+  match Hashtbl.add environment.values ~key:name ~data:value with
+  | `Ok -> ()
+  | `Duplicate -> Hashtbl.set environment.values ~key:name ~data:value
 ;;
 
 let rec assign environment (name : Scanner.token) value =
@@ -50,8 +52,9 @@ let rec assign environment (name : Scanner.token) value =
            { where = name.line; message = "Undefined variable '" ^ name.lexeme ^ "'." }
     | Some enclosing -> assign enclosing name value)
   | Some _ ->
-    Hashtbl.remove environment.values name.lexeme;
-    Hashtbl.add_exn environment.values ~key:name.lexeme ~data:value;
+    (match Hashtbl.add environment.values ~key:name.lexeme ~data:value with
+    | `Ok -> ()
+    | `Duplicate -> Hashtbl.set environment.values ~key:name.lexeme ~data:value);
     value
 ;;
 
