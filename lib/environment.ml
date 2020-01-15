@@ -1,7 +1,19 @@
+open Base
+
+module Values = struct
+  type t = (string, Value.t) Hashtbl.t
+
+  let pp ppf values =
+    Hashtbl.iteri values ~f:(fun ~key ~data ->
+        Caml.Format.fprintf ppf "@[<1>%s: %s@]@." key (Value.string_of data))
+  ;;
+end
+
 type t =
-  { values : (string, Value.t) Hashtbl.t
+  { values : Values.t
   ; enclosing : t option
   }
+[@@deriving show]
 
 let init ?enclosing () = { values = Hashtbl.create 32; enclosing }
 
