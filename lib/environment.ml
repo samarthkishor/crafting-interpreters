@@ -58,11 +58,11 @@ let rec assign environment (name : Scanner.token) value =
     value
 ;;
 
-let rec copy environment =
+let copy environment =
   { values = Values.copy environment.values
   ; enclosing =
       (match environment.enclosing with
       | None -> None
-      | Some e -> Some (copy e))
+      | Some e -> Some { e with values = Values.copy e.values })
   }
 ;;
