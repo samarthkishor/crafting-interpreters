@@ -16,7 +16,7 @@ end
 
 type t =
   { values : Values.t
-  ; enclosing : t option
+  ; mutable enclosing : t option
   }
 [@@deriving show]
 
