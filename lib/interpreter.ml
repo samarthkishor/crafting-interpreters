@@ -200,7 +200,7 @@ let rec evaluate_statement (state : state) statement =
   | Block block_statements ->
     (* need to copy the Environment because it's passed by reference *)
     let previous_environment = Environment.copy state.state_env in
-    let new_environment = Environment.init ~enclosing:previous_environment () in
+    let new_environment = Environment.init ~enclosing:state.state_env () in
     (try interpret ~state:{ state with state_env = new_environment } block_statements with
     | error ->
       (* restore the previous environment even if there was an error *)
