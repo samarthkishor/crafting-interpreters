@@ -1,8 +1,6 @@
 open Base
 
-type t = { environment : Environment.t }
-
-type state =
+type t =
   { mutable state_env : Environment.t
   ; mutable globals : Environment.t
   }
@@ -129,7 +127,7 @@ let rec evaluate state (expr : Parser.expr) =
     else evaluate state expr.logical_right
 ;;
 
-let rec evaluate_statement (state : state) statement =
+let rec evaluate_statement (state : t) statement =
   match statement with
   | Parser.Expression expression -> ignore (evaluate state expression)
   | Parser.IfStatement s ->
