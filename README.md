@@ -6,6 +6,9 @@ using a mix of imperative- and functional-style OCaml to write the interpreter.
 
 ## Usage
 
+Run `dune build @install` to compile the OCaml code. You might need to install
+the relevant dependencies via `opam`.
+
 Run `dune exec ./bin/main.exe` from the root directory to launch the interpreter.
 
 Tests are executed by running `dune runtest`.
