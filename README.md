@@ -1,8 +1,9 @@
 # Crafting Interpreters
 
-This is an interpreter for the Lox programming language from the book [Crafting
-Interpreters](https://craftinginterpreters.com/). The book uses Java but I'm
-using a mix of imperative- and functional-style OCaml to write the interpreter.
+This is a tree-walking interpreter for a subset of the Lox programming language
+from the book [Crafting Interpreters](https://craftinginterpreters.com/). The
+book uses Java but I'm using a mix of imperative- and functional-style OCaml to
+implement the interpreter.
 
 ## Usage
 
