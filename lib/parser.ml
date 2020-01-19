@@ -10,6 +10,7 @@ type expr =
   | Variable of Scanner.token
   | Assign of assign
   | Logical of logical
+[@@deriving show]
 
 and unary =
   { unary_operator : Scanner.token
@@ -46,7 +47,7 @@ and logical =
   ; logical_right : expr
   }
 
-type parser =
+type t =
   { tokens : Scanner.token array
   ; mutable current : int
   }
@@ -88,6 +89,7 @@ type statement =
   | VarDeclaration of var_declaration
   | WhileStatement of while_statement
   | Block of statement list
+[@@deriving show]
 
 and if_statement =
   { condition : expr

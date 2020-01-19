@@ -9,7 +9,11 @@
 #mod_use "scanner.ml";;
 #mod_use "parser.ml";;
 #mod_use "environment.ml";;
+#mod_use "resolver.ml";;
 #mod_use "interpreter.ml";;
 
-(* pretty-print Environment.t when tracing *)
+(* pretty-print when tracing *)
 #install_printer Environment.pp;;
+#install_printer Resolver.pp;;
+#install_printer Resolver.Scopes.pp;;
+#install_printer Resolver.Depths.pp;;
