@@ -12,8 +12,9 @@ let run source =
   |> Scanner.scan_tokens
   |> Parser.make_parser
   |> Parser.parse
-  |> Interpreter.interpret
-  |> ignore
+  |> Resolver.make_resolver
+  |> Resolver.resolve
+  |> Interpreter.make_interpreter
 ;;
 
 let read_file file_name = String.concat (Stdio.In_channel.read_lines file_name) ~sep:"\n"

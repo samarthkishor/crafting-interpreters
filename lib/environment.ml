@@ -66,3 +66,38 @@ let copy environment =
       | Some e -> Some { e with values = Values.copy e.values })
   }
 ;;
+
+let rec ancestor environment distance =
+  if distance = 0
+  then Some environment
+  else (
+    match environment.enclosing with
+    | None -> None
+    | Some env -> ancestor env (distance - 1))
+;;
+
+let get_at_distance environment distance (name : Scanner.token) =
+  match ancestor environment distance with
+  | None ->
+    raise
+    @@ LoxError.RuntimeError
+         { where = name.line
+         ; message = "Error in resolution phase with variable '" ^ name.lexeme ^ "'."
+         }
+  | Some env -> get_value env name
+;;
+
+let assign_at_distance environment (name : Scanner.token) value distance =
+  match ancestor environment distance with
+  | None ->
+    raise
+    @@ LoxError.RuntimeError
+         { where = name.line
+         ; message = "Error in resolution phase with variable '" ^ name.lexeme ^ "'."
+         }
+  | Some env ->
+    (match Hashtbl.add env.values ~key:name.lexeme ~data:value with
+    | `Ok -> ()
+    | `Duplicate -> Hashtbl.set env.values ~key:name.lexeme ~data:value);
+    value
+;;

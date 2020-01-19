@@ -3,6 +3,7 @@ open Base
 type t =
   { mutable state_env : Environment.t
   ; mutable globals : Environment.t
+  ; locals : Resolver.Depths.t
   }
 
 exception Return of Value.t
@@ -44,6 +45,12 @@ let binary_comparison operator left right =
     raise @@ LoxError.TypeError { observed_type = type_of v; expected_type = Number }
   | v, _ ->
     raise @@ LoxError.TypeError { observed_type = type_of v; expected_type = Number }
+;;
+
+let look_up_variable state (token : Scanner.token) =
+  match Hashtbl.find state.locals token.lexeme with
+  | None -> Environment.get_value state.state_env token
+  | Some distance -> Environment.get_at_distance state.state_env distance token
 ;;
 
 let rec evaluate state (expr : Parser.expr) =
@@ -108,10 +115,13 @@ let rec evaluate state (expr : Parser.expr) =
       raise
       @@ LoxError.RuntimeError
            { where = c.paren.line; message = "Can only call functions and classes." })
-  | Variable token -> Environment.get_value state.state_env token
+  | Variable token -> look_up_variable state token
   | Assign expr ->
     let value = evaluate state expr.assign_value in
-    Environment.assign state.state_env expr.name value
+    (match Hashtbl.find state.locals (Parser.string_of_expr expr.assign_value) with
+    | None -> Environment.assign state.state_env expr.name value
+    | Some distance ->
+      Environment.assign_at_distance state.state_env expr.name value distance)
   | Logical expr ->
     let left = evaluate state expr.logical_left in
     (* short-circuit `or` if left evaluates to true *)
@@ -172,7 +182,7 @@ let rec evaluate_statement (state : t) statement =
              ; message = "Unequal number of arguments and parameters to function."
              });
       try
-        interpret ~state:{ state with state_env = new_env } f.fun_body;
+        interpret { state with state_env = new_env } f.fun_body;
         Value.LoxNil
       with
       | Return value -> value
@@ -199,19 +209,26 @@ let rec evaluate_statement (state : t) statement =
     (* need to copy the Environment because it's passed by reference *)
     let previous_environment = Environment.copy state.state_env in
     let new_environment = Environment.init ~enclosing:state.state_env () in
-    (try interpret ~state:{ state with state_env = new_environment } block_statements with
+    (try interpret { state with state_env = new_environment } block_statements with
     | error ->
       (* restore the previous environment even if there was an error *)
       state.state_env <- previous_environment;
       raise error);
     state.state_env <- previous_environment
 
-and interpret
-    ?(state = { state_env = Environment.init (); globals = Environment.init () })
-    (statements : Parser.statement list)
-  =
+and interpret state (statements : Parser.statement list) =
   try List.iter ~f:(fun statement -> evaluate_statement state statement) statements with
   | LoxError.TypeError error -> LoxError.report_runtime_error (LoxError.TypeError error)
   | LoxError.RuntimeError error ->
     LoxError.report_runtime_error (LoxError.RuntimeError error)
+;;
+
+let make_interpreter (resolver : Resolver.t) =
+  let state =
+    { state_env = Environment.init ()
+    ; globals = Environment.init ()
+    ; locals = resolver.depths
+    }
+  in
+  interpret state resolver.parsed_statements
 ;;

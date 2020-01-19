@@ -50,6 +50,7 @@ type t =
   { statements : Parser.statement list
   ; scopes : Scopes.t
   ; depths : Depths.t
+  ; parsed_statements : Parser.statement list
   }
 [@@deriving show]
 
@@ -57,6 +58,7 @@ let make_resolver statements =
   { statements
   ; scopes = Stack.create ()
   ; depths = Hashtbl.create ~growth_allowed:true ~size:32 (module String)
+  ; parsed_statements = statements
   }
 ;;
 
@@ -72,7 +74,7 @@ let add_variable (name : Scanner.token) scopes status : Scopes.t =
     let new_scope =
       match Hashtbl.add scope ~key:name.lexeme ~data:status with
       | `Duplicate ->
-        Hashtbl.set scope ~key:name.lexeme ~data:status;
+        (* Hashtbl.set scope ~key:name.lexeme ~data:status; *)
         scope
       | `Ok -> scope
     in
