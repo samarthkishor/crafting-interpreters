@@ -96,11 +96,7 @@ let resolve_local resolver (var : Scanner.token) =
 let resolve_literal resolver : t = resolver
 
 let rec resolve resolver =
-  match resolver.statements with
-  | [] -> resolver
-  | statement :: statements ->
-    let new_resolver = resolve_statement resolver statement in
-    resolve { new_resolver with statements }
+  List.fold resolver.statements ~init:resolver ~f:resolve_statement
 
 and resolve_statement resolver statement =
   match statement with
