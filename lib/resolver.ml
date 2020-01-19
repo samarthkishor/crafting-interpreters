@@ -71,7 +71,10 @@ let add_variable (name : Scanner.token) scopes status : Scopes.t =
     in
     let new_scope =
       match Hashtbl.add scope ~key:name.lexeme ~data:status with
-      | `Duplicate | `Ok -> scope
+      | `Duplicate ->
+        Hashtbl.set scope ~key:name.lexeme ~data:status;
+        scope
+      | `Ok -> scope
     in
     Stack.push scopes new_scope;
     scopes)
@@ -89,7 +92,9 @@ let resolve_local resolver (var : Scanner.token) =
       ~finish:(fun count -> count)
   in
   match Hashtbl.add resolver.depths ~key:var.lexeme ~data:scope_count with
-  | `Duplicate -> resolver
+  | `Duplicate ->
+    Hashtbl.set resolver.depths ~key:var.lexeme ~data:scope_count;
+    resolver
   | `Ok -> resolver
 ;;
 
