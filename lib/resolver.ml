@@ -93,8 +93,6 @@ let resolve_local resolver (var : Scanner.token) =
   | `Ok -> resolver
 ;;
 
-let resolve_literal resolver : t = resolver
-
 let rec resolve resolver =
   List.fold resolver.statements ~init:resolver ~f:resolve_statement
 
@@ -139,14 +137,35 @@ and resolve_statement resolver statement =
           | Define ->
             LoxError.error var.line "Cannot read local variable in its own initializer.";
             resolver)))
-    | Assign a ->
+    | Assign expr ->
       let new_resolver =
-        resolve { resolver with statements = [ Parser.Expression a.assign_value ] }
+        resolve { resolver with statements = [ Parser.Expression expr.assign_value ] }
       in
-      let new_resolver = resolve_local new_resolver a.name in
+      let new_resolver = resolve_local new_resolver expr.name in
       new_resolver
-    | Literal _ -> resolve_literal resolver
-    | e -> resolve { resolver with statements = [ Parser.Expression e ] })
+    | Literal _ -> resolver
+    | Binary expr ->
+      let new_resolver =
+        resolve { resolver with statements = [ Parser.Expression expr.left ] }
+      in
+      resolve { new_resolver with statements = [ Parser.Expression expr.right ] }
+    | Call expr ->
+      let new_resolver =
+        resolve { resolver with statements = [ Parser.Expression expr.callee ] }
+      in
+      resolve
+        { new_resolver with
+          statements = List.map expr.arguments ~f:(fun arg -> Parser.Expression arg)
+        }
+    | Grouping expr ->
+      resolve { resolver with statements = [ Parser.Expression expr.expression ] }
+    | Logical expr ->
+      let new_resolver =
+        resolve { resolver with statements = [ Parser.Expression expr.logical_left ] }
+      in
+      resolve { new_resolver with statements = [ Parser.Expression expr.logical_right ] }
+    | Unary expr ->
+      resolve { resolver with statements = [ Parser.Expression expr.operand ] })
   | FunctionDeclaration d ->
     let new_scopes = add_variable d.fun_name resolver.scopes Declare in
     let new_scopes = add_variable d.fun_name new_scopes Define in
