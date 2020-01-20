@@ -19,15 +19,17 @@ module Scopes = struct
       Stack.iter scopes ~f:(fun scope ->
           if Hashtbl.length scope = 0
           then Caml.Format.fprintf ppf "@[<hov 2>{}@]"
-          else
+          else (
+            Caml.Format.fprintf ppf "@[<hov 1>{@ @]";
             Hashtbl.iteri scope ~f:(fun ~key ~data ->
                 Caml.Format.fprintf
                   ppf
-                  "@[<hov 2>%s: %s@ @]"
+                  "@[<hov 2>%s: %s,@ @]"
                   key
                   (match data with
                   | Declare -> "declared"
-                  | Define -> "defined")));
+                  | Define -> "defined"));
+            Caml.Format.fprintf ppf "@[<hov 1>}@]"));
     Caml.Format.close_box ()
   ;;
 end
@@ -40,9 +42,11 @@ module Depths = struct
     Caml.Format.print_cut ();
     if Hashtbl.length values = 0
     then Caml.Format.fprintf ppf "@[<hov 2>{}@]"
-    else
+    else (
+      Caml.Format.fprintf ppf "@[<hov 1>{@ @]";
       Hashtbl.iteri values ~f:(fun ~key ~data ->
-          Caml.Format.fprintf ppf "@[<hov 2>%s: %d@ @]" key data);
+          Caml.Format.fprintf ppf "@[<hov 2>%s: %d,@ @]" key data);
+      Caml.Format.fprintf ppf "@[<hov 1>}@]");
     Caml.Format.close_box ()
   ;;
 end
