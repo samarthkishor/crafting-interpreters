@@ -7,7 +7,8 @@ module Scopes = struct
 
   type t = (string, var_status) Hashtbl.t Stack.t
 
-  let empty scopes = Stack.length scopes = 0
+  let empty (scopes : t) = Stack.length scopes = 0
+  let to_list (scopes : t) = scopes |> Stack.to_list |> List.rev
 
   let pp ppf scopes =
     Caml.Format.open_hovbox 1;
@@ -74,7 +75,7 @@ let add_variable (name : Scanner.token) scopes status : Scopes.t =
     let new_scope =
       match Hashtbl.add scope ~key:name.lexeme ~data:status with
       | `Duplicate ->
-        (* Hashtbl.set scope ~key:name.lexeme ~data:status; *)
+        Hashtbl.set scope ~key:name.lexeme ~data:status;
         scope
       | `Ok -> scope
     in
@@ -84,8 +85,8 @@ let add_variable (name : Scanner.token) scopes status : Scopes.t =
 
 let resolve_local resolver (var : Scanner.token) =
   let scope_count =
-    Stack.fold_until
-      resolver.scopes
+    List.fold_until
+      (Scopes.to_list resolver.scopes)
       ~init:0
       ~f:(fun count scope ->
         match Hashtbl.find scope var.lexeme with
@@ -134,16 +135,16 @@ and resolve_statement resolver statement =
     (match expr with
     | Variable var ->
       (match Stack.top resolver.scopes with
-      | None -> resolver (* TODO figure this out *)
+      | None -> resolve_local resolver var
       | Some scope ->
         (match Hashtbl.find scope var.lexeme with
         | None -> resolve_local resolver var
         | Some status ->
           (match status with
-          | Declare -> resolve_local resolver var
-          | Define ->
+          | Declare ->
             LoxError.error var.line "Cannot read local variable in its own initializer.";
-            resolver)))
+            resolver
+          | Define -> resolve_local resolver var)))
     | Assign expr ->
       let new_resolver =
         resolve { resolver with statements = [ Parser.Expression expr.assign_value ] }
