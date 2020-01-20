@@ -67,7 +67,7 @@ let make_resolver statements =
   }
 ;;
 
-let add_variable (name : Scanner.token) scopes status : Scopes.t =
+let add_variable (name : Scanner.token) scopes (status : Scopes.var_status) : Scopes.t =
   if Scopes.empty scopes
   then scopes
   else (
@@ -75,6 +75,17 @@ let add_variable (name : Scanner.token) scopes status : Scopes.t =
       match Stack.pop scopes with
       | None -> Hashtbl.create ~growth_allowed:true ~size:16 (module String)
       | Some s -> s
+    in
+    let () =
+      match status with
+      | Define -> ()
+      | Declare ->
+        (match Hashtbl.find scope name.lexeme with
+        | None -> ()
+        | Some _ ->
+          LoxError.error
+            name.line
+            "Variable with this name already declared in this scope.")
     in
     let new_scope =
       match Hashtbl.add scope ~key:name.lexeme ~data:status with
@@ -89,6 +100,7 @@ let add_variable (name : Scanner.token) scopes status : Scopes.t =
 
 let resolve_local resolver (var : Scanner.token) =
   let scope_count =
+    (* iterate over the scopes in reverse order (bottom-first) *)
     List.fold_until
       (Scopes.to_list resolver.scopes)
       ~init:0
