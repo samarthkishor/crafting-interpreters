@@ -137,17 +137,17 @@ let rec evaluate state (expr : Parser.expr) =
     else evaluate state expr.logical_right
 ;;
 
-let rec evaluate_statement (state : t) statement =
+let rec evaluate_statement (state : t) (statement : Parser.statement) =
   match statement with
-  | Parser.Expression expression -> ignore (evaluate state expression)
-  | Parser.IfStatement s ->
+  | Expression expression -> ignore (evaluate state expression)
+  | IfStatement s ->
     if is_truthy (evaluate state s.condition)
     then evaluate_statement state s.then_branch
     else (
       match s.else_branch with
       | None -> ()
       | Some branch -> evaluate_statement state branch)
-  | Parser.Print expression ->
+  | Print expression ->
     evaluate state expression |> Value.string_of |> Stdio.printf "%s\n"
   | ReturnStatement s ->
     let return_value =
