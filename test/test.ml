@@ -226,10 +226,10 @@ let () =
             "interpret simple closure"
             `Slow
             (test_interpreter "simple_closure")
-          (* ; Alcotest.test_case
-           *     "interpret closure with globals"
-           *     `Slow
-           *     (test_interpreter "closure_globals") *)
+        ; Alcotest.test_case
+            "interpret closure with globals"
+            `Slow
+            (test_interpreter "closure_globals")
         ] )
     ]
 ;;
