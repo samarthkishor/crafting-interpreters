@@ -1,4 +1,3 @@
-(* TODO Refactor this eventually to be purely functional *)
 (* TODO Fix parser error handling *)
 
 type expr =
@@ -68,7 +67,7 @@ let rec string_of_expr expr =
     ^ String.concat ", " (List.map (fun arg -> string_of_expr arg) c.arguments)
     ^ ")"
   | Grouping e -> "(" ^ string_of_expr e.expression ^ ")"
-  | Literal e -> Value.string_of e.value
+  | Literal e -> Value.to_string e.value
   | Unary e -> "(" ^ e.unary_operator.lexeme ^ " " ^ string_of_expr e.operand ^ ")"
   | Variable e -> e.lexeme
   | Assign e -> e.name.lexeme ^ " = " ^ string_of_expr e.assign_value
@@ -246,7 +245,7 @@ and primary parser =
   | True -> Literal { token; value = LoxBool true }
   | Nil -> Literal { token; value = LoxNil }
   | Number -> Literal { token; value = LoxNumber (float_of_string token.lexeme) }
-  | String -> Literal { token; value = LoxString token.lexeme }
+  | String -> Literal { token; value = token.literal }
   | Identifier -> Variable token
   | LeftParen ->
     let expr = expression parser in

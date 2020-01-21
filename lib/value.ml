@@ -28,7 +28,7 @@ exception
     ; expected_type : eval_type
     }
 
-let string_of value =
+let to_string value =
   match value with
   | LoxBool b -> Bool.to_string b
   | LoxInt i -> Printf.sprintf "%d" i

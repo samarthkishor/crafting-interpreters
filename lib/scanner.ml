@@ -91,14 +91,14 @@ let get_char scanner =
 ;;
 
 let get_lexeme scanner =
+  (* NOTE String.sub is weird in OCaml... see documentation *)
   String.sub scanner.source scanner.start (scanner.current - scanner.start)
 ;;
 
 let add_token scanner token_type =
   let token =
     { token_type
-    ; (* NOTE String.sub is weird in OCaml... see documentation *)
-      lexeme = get_lexeme scanner
+    ; lexeme = get_lexeme scanner
     ; literal = Value.LoxNil
     ; line = scanner.line
     }
@@ -150,7 +150,7 @@ let rec consume_string scanner =
         (String.sub
            scanner.source
            (scanner.start + 1)
-           (scanner.current - scanner.start - 1))
+           (scanner.current - scanner.start - 2))
     in
     add_token_with_literal scanner String literal)
   else if is_at_end scanner

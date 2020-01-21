@@ -9,7 +9,7 @@ module Values = struct
     Caml.Format.open_hovbox 1;
     Caml.Format.print_cut ();
     Hashtbl.iteri values ~f:(fun ~key ~data ->
-        Caml.Format.fprintf ppf "@[<hov 2>%s: %s@ @]" key (Value.string_of data));
+        Caml.Format.fprintf ppf "@[<hov 2>%s: %s@ @]" key (Value.to_string data));
     Caml.Format.close_box ()
   ;;
 end

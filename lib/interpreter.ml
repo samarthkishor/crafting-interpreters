@@ -148,7 +148,7 @@ let rec evaluate_statement (state : t) (statement : Parser.statement) =
       | None -> ()
       | Some branch -> evaluate_statement state branch)
   | Print expression ->
-    evaluate state expression |> Value.string_of |> Stdio.printf "%s\n"
+    evaluate state expression |> Value.to_string |> Stdio.printf "%s\n"
   | ReturnStatement s ->
     let return_value =
       match s.value with
