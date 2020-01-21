@@ -159,7 +159,7 @@ let rec evaluate_statement (state : t) (statement : Parser.statement) =
   | FunctionDeclaration f ->
     let env = Environment.init ~enclosing:state.state_env () in
     let func_state : Environment.t =
-      { values = state.state_env.values; enclosing = Some env }
+      { values = state.state_env.values; enclosing = env.enclosing }
     in
     let call_func args =
       let new_env =
