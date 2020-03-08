@@ -1,3 +1,5 @@
+open Base
+
 type token_type =
   (* Single character tokens *)
   | LeftParen
@@ -92,7 +94,7 @@ let get_char scanner =
 
 let get_lexeme scanner =
   (* NOTE String.sub is weird in OCaml... see documentation *)
-  String.sub scanner.source scanner.start (scanner.current - scanner.start)
+  String.sub scanner.source ~pos:scanner.start ~len:(scanner.current - scanner.start)
 ;;
 
 let add_token scanner token_type =
@@ -115,7 +117,7 @@ let add_double_token scanner double_token single_token =
   match scanner |> advance_scanner |> get_char with
   | None -> add_token scanner single_token
   | Some c ->
-    if c <> '='
+    if not (Char.equal c '=')
     then add_token scanner single_token
     else add_token (advance_scanner scanner) double_token
 ;;
@@ -130,10 +132,10 @@ let add_comment scanner =
   match scanner |> advance_scanner |> get_char with
   | None -> add_token scanner Slash
   | Some c ->
-    if c = '/'
+    if Char.equal c '/'
     then (
       let rec comment_out scanner =
-        if is_at_end scanner || peek scanner = '\n'
+        if is_at_end scanner || Char.equal (peek scanner) '\n'
         then scanner
         else scanner |> advance_scanner |> comment_out
       in
@@ -142,15 +144,15 @@ let add_comment scanner =
 ;;
 
 let rec consume_string scanner =
-  if peek scanner = '"' && not (is_at_end scanner)
+  if Char.equal (peek scanner) '"' && not (is_at_end scanner)
   then (
     let scanner = advance_scanner scanner in
     let literal =
       Value.LoxString
         (String.sub
            scanner.source
-           (scanner.start + 1)
-           (scanner.current - scanner.start - 2))
+           ~pos:(scanner.start + 1)
+           ~len:(scanner.current - scanner.start - 2))
     in
     add_token_with_literal scanner String literal)
   else if is_at_end scanner
@@ -160,16 +162,16 @@ let rec consume_string scanner =
   else scanner |> advance_scanner |> consume_string
 ;;
 
-let is_digit c = c >= '0' && c <= '9'
-let is_alpha c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'z') || c == '_'
+let is_digit c = Char.(>=) c '0' && Char.(<=) c '9'
+let is_alpha c = (Char.(>=) c 'a' && Char.(<=) c 'z') || (Char.(>=) c 'A' && Char.(<=) c 'z') || Char.equal c '_'
 let is_alphanumeric c = is_digit c || is_alpha c
 
 let rec number scanner =
-  if not (is_digit (peek scanner) || peek scanner = '.')
+  if not (is_digit (peek scanner) || Char.equal (peek scanner) '.')
   then (
     let value = get_lexeme scanner in
     let num =
-      try Some (float_of_string value) with
+      try Some (Float.of_string value) with
       | _ -> None
     in
     match num with
@@ -185,7 +187,7 @@ let rec identifier scanner =
   then (
     let text = get_lexeme scanner in
     let token_type =
-      match List.assoc_opt text keywords with
+      match List.Assoc.find keywords ~equal:String.equal text with
       | None -> Identifier
       | Some t -> t
     in
