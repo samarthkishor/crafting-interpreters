@@ -2,7 +2,7 @@ let () =
   let argc = Array.length Sys.argv in
   if argc > 2
   then (
-    print_endline "Usage: jlox [script]";
+    print_endline "Usage: ocamlox [script]";
     exit 64)
   else if argc = 2
   then (
