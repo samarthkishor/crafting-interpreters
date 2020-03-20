@@ -5,6 +5,7 @@ module Value = Value
 module Error = Error
 module Scanner = Scanner
 module Parser = Parser
+module Resolver = Resolver
 module Interpreter = Interpreter
 
 let run source =
