@@ -25,10 +25,9 @@ let run_prompt () =
     Stdio.printf "> ";
     Stdio.Out_channel.flush Stdio.stdout;
     let line = Stdio.In_channel.input_line Stdio.stdin in
-    (match line with
+    match line with
     | None -> ()
-    | Some l -> run l);
-    LoxError.had_error := false
+    | Some l -> run l
   done
 ;;
 

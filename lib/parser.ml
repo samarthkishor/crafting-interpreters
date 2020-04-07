@@ -1,5 +1,3 @@
-(* TODO Fix parser error handling *)
-
 type expr =
   | Literal of literal
   | Unary of unary
@@ -203,16 +201,18 @@ let consume parser token_type message =
 ;;
 
 let synchronize parser =
-  ignore (advance parser);
-  while not (at_end parser) do
-    if (previous parser).token_type = Semicolon
-    then ()
+  let _ = advance parser in
+  let rec loop () =
+    if at_end parser || (previous parser).token_type = Semicolon
+    then parser
     else (
       match (peek parser).token_type with
-      | Class | Fun | Var | For | If | While | Print | Return -> ()
-      | _ -> ignore (advance parser))
-  done;
-  parser
+      | Class | Fun | Var | For | If | While | Print | Return -> parser
+      | _ ->
+        let _ = advance parser in
+        loop ())
+  in
+  loop ()
 ;;
 
 (* Parses left associative binary expressions *)
@@ -522,5 +522,7 @@ and block ?(statements = []) parser =
 let rec parse ?(statements = []) parser =
   if at_end parser
   then List.rev statements
-  else parse ~statements:(declaration parser :: statements) parser
+  else (
+    try parse ~statements:(declaration parser :: statements) parser with
+    | LoxError.ParseError _ -> [])
 ;;
