@@ -10,9 +10,9 @@ type t =
 
 and lox_function =
   { arity : int
-  ; callable : t list -> t
+  ; callable : t list -> t [@equal fun _ _ -> false] (* no equality for functions *)
   }
-[@@deriving show]
+[@@deriving show, eq]
 
 type eval_type =
   | Bool

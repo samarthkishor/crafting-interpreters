@@ -1,3 +1,5 @@
+open Base
+
 type expr =
   | Literal of literal
   | Unary of unary
@@ -62,7 +64,7 @@ let rec string_of_expr expr =
   | Call c ->
     string_of_expr c.callee
     ^ "("
-    ^ String.concat ", " (List.map (fun arg -> string_of_expr arg) c.arguments)
+    ^ String.concat ~sep:", " (List.map ~f:(fun arg -> string_of_expr arg) c.arguments)
     ^ ")"
   | Grouping e -> "(" ^ string_of_expr e.expression ^ ")"
   | Literal e -> Value.to_string e.value
@@ -140,17 +142,20 @@ let rec string_of_statement stmt =
     Printf.sprintf
       "fun %s(%s) {%s}"
       f.fun_name.lexeme
-      (String.concat ", " (List.map (fun (t : Scanner.token) -> t.lexeme) f.params))
-      (String.concat " " (List.map (fun s -> string_of_statement s) f.fun_body))
+      (String.concat
+         ~sep:", "
+         (List.map ~f:(fun (t : Scanner.token) -> t.lexeme) f.params))
+      (String.concat ~sep:" " (List.map ~f:(fun s -> string_of_statement s) f.fun_body))
   | VarDeclaration e ->
     let right_side =
       match e.init with
-      | Literal l -> if l.value = LoxNil then ";" else " = " ^ string_of_expr e.init ^ ";"
+      | Literal l ->
+        if Value.equal l.value LoxNil then ";" else " = " ^ string_of_expr e.init ^ ";"
       | _ -> " = " ^ string_of_expr e.init ^ ";"
     in
     "var " ^ e.name.lexeme ^ right_side
   | Block statements ->
-    "{" ^ (List.map string_of_statement statements |> String.concat " ") ^ "}"
+    "{" ^ (List.map ~f:string_of_statement statements |> String.concat ~sep:" ") ^ "}"
   | WhileStatement s ->
     (* make sure there are always parentheses around the while condition *)
     let while_condition =
@@ -163,7 +168,7 @@ let rec string_of_statement stmt =
 
 (* For debugging *)
 let print_statements statements =
-  List.iter (fun s -> string_of_statement s |> Printf.printf "%s\n") statements
+  List.iter ~f:(fun s -> string_of_statement s |> Stdio.printf "%s\n") statements
 ;;
 
 let make_parser tokens = { tokens = Array.of_list tokens; current = 0 }
@@ -177,7 +182,9 @@ let advance parser =
 ;;
 
 let check parser token_type =
-  if at_end parser then false else (peek parser).token_type == token_type
+  if at_end parser
+  then false
+  else Scanner.equal_token_type (peek parser).token_type token_type
 ;;
 
 let rec matches parser token_types =
@@ -203,7 +210,7 @@ let consume parser token_type message =
 let synchronize parser =
   let _ = advance parser in
   let rec loop () =
-    if at_end parser || (previous parser).token_type = Semicolon
+    if at_end parser || Scanner.equal_token_type (previous parser).token_type Semicolon
     then parser
     else (
       match (peek parser).token_type with
@@ -244,7 +251,7 @@ and primary parser =
   | False -> Literal { token; value = LoxBool false }
   | True -> Literal { token; value = LoxBool true }
   | Nil -> Literal { token; value = LoxNil }
-  | Number -> Literal { token; value = LoxNumber (float_of_string token.lexeme) }
+  | Number -> Literal { token; value = LoxNumber (Float.of_string token.lexeme) }
   | String -> Literal { token; value = token.literal }
   | Identifier -> Variable token
   | LeftParen ->
