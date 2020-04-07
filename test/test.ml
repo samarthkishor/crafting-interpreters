@@ -169,12 +169,25 @@ let string_of_unix_command cmd =
 (* NOTE I can't figure out how to capture stdout into a string, so instead I read
  * from files and compare the results of running the lox file with the expected
  * file. Alcotest tests execute in the directory $PROJECT_ROOT/_build/default/test *)
-let test_interpreter test_name _ =
+let test_interpreter dir_name test_name _ =
   Alcotest.(check string)
     "same string"
-    (Lox.read_file @@ Printf.sprintf "../../../test/test_files/test_%s.expected" test_name)
+    (Lox.read_file
+    @@ Printf.sprintf "../../../test/test_files/%s/%s.expected" dir_name test_name)
     (string_of_unix_command
-    @@ Printf.sprintf "../bin/main.exe ../../../test/test_files/test_%s.lox" test_name)
+    @@ Printf.sprintf
+         "../bin/main.exe ../../../test/test_files/%s/%s.lox"
+         dir_name
+         test_name)
+;;
+
+(* Utility function to make a list of test cases
+ * `test_group` is a list of strings containing test filenames *)
+let rec make_unit_tests name = function
+  | [] -> []
+  | filename :: filenames ->
+    [ Alcotest.test_case ("test " ^ filename) `Slow (test_interpreter name filename) ]
+    @ make_unit_tests name filenames
 ;;
 
 (* Run tests *)
@@ -217,19 +230,109 @@ let () =
       , [ Alcotest.test_case
             "interpret recursive function"
             `Slow
-            (test_interpreter "fibonacci")
+            (test_interpreter "_other" "test_fibonacci")
         ; Alcotest.test_case
             "interpret program with global variables"
             `Slow
-            (test_interpreter "globals")
+            (test_interpreter "_other" "test_globals")
         ; Alcotest.test_case
             "interpret simple closure"
             `Slow
-            (test_interpreter "simple_closure")
+            (test_interpreter "_other" "test_simple_closure")
         ; Alcotest.test_case
             "interpret closure with globals"
             `Slow
-            (test_interpreter "closure_globals")
+            (test_interpreter "_other" "test_closure_globals")
         ] )
+    ; ( "assignment tests"
+      , make_unit_tests "assignment" [ "syntax"; "global"; "associativity"; "local" ] )
+    ; ( "closure test"
+      , make_unit_tests
+          "closure"
+          [ "reuse_closure_slot"
+          ; "assign_to_shadowed_later"
+          ; "close_over_later_variable"
+          ; "closed_closure_in_function"
+          ; "unused_later_closure"
+          ; "shadow_closure_with_local"
+          ; "unused_closure"
+          ; "close_over_function_parameter"
+          ; "close_over_method_parameter"
+          ; "open_closure_in_function"
+          ; "reference_closure_multiple_times"
+          ; "nested_closure"
+          ; "assign_to_closure"
+          ] )
+    ; "comments test", make_unit_tests "comments" [ "line_at_eof"; "unicode" ]
+    ; ( "variable tests"
+      , make_unit_tests
+          "variable"
+          [ "in_nested_block"
+          ; "scope_reuse_in_different_blocks"
+          ; "use_global_in_initializer"
+          ; "redeclare_global"
+          ; "shadow_and_local"
+          ; "early_bound"
+          ; "uninitialized"
+          ; "shadow_global"
+          ; "in_middle_of_block"
+          ; "shadow_local"
+          ; "unreached_undefined"
+          ; "redefine_global"
+          ] )
+    ; "nil tests", make_unit_tests "nil" [ "literal" ]
+    ; "if tests", make_unit_tests "if" [ "dangling_else"; "truth"; "else"; "if" ]
+    ; ( "return tests"
+      , make_unit_tests
+          "return"
+          [ "after_if"
+          ; "after_else"
+          ; "return_nil_if_no_value"
+          ; "in_function"
+          ; "after_while"
+          ] )
+    ; ( "function tests"
+      , make_unit_tests
+          "function"
+          [ "empty_body"
+          ; "parameters"
+          ; "local_recursion"
+          ; "recursion"
+          ; "print"
+          ; "mutual_recursion"
+          ] )
+    ; ( "scanning tests"
+      , make_unit_tests
+          "scanning"
+          [ "numbers"; "keywords"; "punctuators"; "whitespace"; "identifiers"; "strings" ]
+      )
+    ; "number tests", make_unit_tests "number" [ "nan_equality"; "literals" ]
+    ; ( "logical operators tests"
+      , make_unit_tests "logical_operator" [ "and"; "or"; "and_truth"; "or_truth" ] )
+    ; "boolean tests", make_unit_tests "bool" [ "equality"; "not" ]
+    ; "expressions tests", make_unit_tests "expressions" [ "evaluate"; "parse" ]
+      (* ; ( "for loop tests"
+       *   , make_unit_tests
+       *       "for"
+       *       [ "return_closure"; "scope"; "syntax"; "return_inside"; "closure_in_body" ] ) *)
+    ; "string tests", make_unit_tests "string" [ "literals"; "multiline" ]
+      (* ; ( "while loop tests"
+       *   , make_unit_tests
+       *       "while"
+       *       [ "return_closure"; "syntax"; "return_inside"; "closure_in_body" ] ) *)
+    ; ( "operator tests"
+      , make_unit_tests
+          "operator"
+          [ "multiply"
+          ; "negate"
+          ; "comparison"
+          ; "not_equals"
+          ; "add"
+          ; "equals"
+          ; "divide"
+          ; "not"
+          ; "subtract"
+          ] )
+    ; "block tests", make_unit_tests "block" [ "empty"; "scope" ]
     ]
 ;;

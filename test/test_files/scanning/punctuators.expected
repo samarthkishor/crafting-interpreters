@@ -1,0 +1,19 @@
+LEFT_PAREN ( null
+RIGHT_PAREN ) null
+LEFT_BRACE { null
+RIGHT_BRACE } null
+SEMICOLON ; null
+COMMA , null
+PLUS + null
+MINUS - null
+STAR * null
+BANG_EQUAL != null
+EQUAL_EQUAL == null
+LESS_EQUAL <= null
+GREATER_EQUAL >= null
+BANG_EQUAL != null
+LESS < null
+GREATER > null
+SLASH / null
+DOT . null
+EOF  null
