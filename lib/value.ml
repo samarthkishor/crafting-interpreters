@@ -10,6 +10,7 @@ type t =
 
 and lox_function =
   { arity : int
+  ; name : string
   ; callable : t list -> t [@equal fun _ _ -> false] (* no equality for functions *)
   }
 [@@deriving show, eq]
@@ -35,7 +36,7 @@ let to_string value =
   | LoxNumber n -> Printf.sprintf "%g" n
   | LoxString s -> s
   | LoxNil -> "nil"
-  | LoxFunction _ -> "<function>"
+  | LoxFunction f -> Printf.sprintf "<fn %s>" f.name
 ;;
 
 let string_of_eval_type eval_type =
