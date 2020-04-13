@@ -20,6 +20,9 @@ let is_equal left right =
   match left, right with
   | LoxNil, LoxNil -> true
   | LoxNil, _ -> false
+  | LoxBool l, LoxBool r -> Bool.( = ) l r
+  | LoxNumber l, LoxNumber r -> Float.( = ) l r
+  | LoxString l, LoxString r -> String.equal l r
   | l, r -> Value.equal_eval_type (Value.type_of l) (Value.type_of r)
 ;;
 
@@ -190,7 +193,8 @@ let rec evaluate_statement (state : t) (statement : Parser.statement) =
     Environment.define
       func_state
       f.fun_name.lexeme
-      (LoxFunction { arity = List.length f.params; callable = call_func })
+      (Value.LoxFunction
+         { name = f.fun_name.lexeme; arity = List.length f.params; callable = call_func })
   | VarDeclaration d ->
     let value =
       match d.init with
