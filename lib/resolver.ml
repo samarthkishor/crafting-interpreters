@@ -55,7 +55,7 @@ type t =
   { statements : Parser.statement list
   ; scopes : Scopes.t
   ; depths : Depths.t
-  ; parsed_statements : Parser.statement list
+  ; parsed_statements : Parser.statement list [@opaque]
   }
 [@@deriving show]
 
