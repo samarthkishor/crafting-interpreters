@@ -51,10 +51,16 @@ module Depths = struct
   ;;
 end
 
+type function_type =
+  | No_function
+  | Some_function
+[@@deriving show]
+
 type t =
   { statements : Parser.statement list
   ; scopes : Scopes.t
   ; depths : Depths.t
+  ; current_function : function_type
   ; parsed_statements : Parser.statement list [@opaque]
   }
 [@@deriving show]
@@ -63,6 +69,7 @@ let make_resolver statements =
   { statements
   ; scopes = Stack.create ()
   ; depths = Hashtbl.create ~growth_allowed:true ~size:32 (module String)
+  ; current_function = No_function
   ; parsed_statements = statements
   }
 ;;
@@ -118,7 +125,29 @@ let resolve_local resolver (var : Scanner.token) =
 ;;
 
 let rec resolve resolver =
-  List.fold resolver.statements ~init:resolver ~f:resolve_statement
+  try List.fold resolver.statements ~init:resolver ~f:resolve_statement with
+  | LoxError.RuntimeError error ->
+    LoxError.report_runtime_error (LoxError.RuntimeError error);
+    { resolver with parsed_statements = [] }
+
+and define_function resolver new_scopes (func : Parser.function_declaration) function_type
+  =
+  let enclosing_function = resolver.current_function in
+  let resolver = { resolver with current_function = function_type } in
+  let () =
+    Stack.push new_scopes (Hashtbl.create ~growth_allowed:true ~size:16 (module String))
+  in
+  let new_scopes =
+    List.fold func.params ~init:new_scopes ~f:(fun scopes param ->
+        let s = add_variable param scopes Declare in
+        add_variable param s Define)
+  in
+  let new_resolver =
+    resolve { resolver with statements = func.fun_body; scopes = new_scopes }
+  in
+  (match Stack.pop new_resolver.scopes with
+  | None | Some _ -> ());
+  { resolver with current_function = enclosing_function }
 
 and resolve_statement resolver statement =
   match statement with
@@ -158,8 +187,11 @@ and resolve_statement resolver statement =
         | Some status ->
           (match status with
           | Declare ->
-            LoxError.error var.line "Cannot read local variable in its own initializer.";
-            resolver
+            raise
+            @@ LoxError.RuntimeError
+                 { where = var.line
+                 ; message = "Cannot read local variable in its own initializer."
+                 }
           | Define -> resolve_local resolver var)))
     | Assign expr ->
       let new_resolver =
@@ -193,20 +225,7 @@ and resolve_statement resolver statement =
   | FunctionDeclaration d ->
     let new_scopes = add_variable d.fun_name resolver.scopes Declare in
     let new_scopes = add_variable d.fun_name new_scopes Define in
-    let () =
-      Stack.push new_scopes (Hashtbl.create ~growth_allowed:true ~size:16 (module String))
-    in
-    let new_scopes =
-      List.fold d.params ~init:new_scopes ~f:(fun scopes param ->
-          let s = add_variable param scopes Declare in
-          add_variable param s Define)
-    in
-    let new_resolver =
-      resolve { resolver with statements = d.fun_body; scopes = new_scopes }
-    in
-    (match Stack.pop new_resolver.scopes with
-    | None | Some _ -> ());
-    new_resolver
+    define_function resolver new_scopes d Some_function
   | IfStatement s ->
     let new_resolver =
       resolve { resolver with statements = [ Parser.Expression s.condition ] }
@@ -217,9 +236,15 @@ and resolve_statement resolver statement =
     | Some b -> resolve { new_resolver with statements = [ b ] })
   | Print p -> resolve { resolver with statements = [ Parser.Expression p ] }
   | ReturnStatement r ->
-    (match r.value with
-    | None -> resolver
-    | Some e -> resolve { resolver with statements = [ Parser.Expression e ] })
+    (match resolver.current_function with
+    | No_function ->
+      raise
+      @@ LoxError.RuntimeError
+           { where = r.keyword.line; message = "Cannot return from top-level code." }
+    | Some_function ->
+      (match r.value with
+      | None -> resolver
+      | Some e -> resolve { resolver with statements = [ Parser.Expression e ] }))
   | WhileStatement s ->
     let new_resolver =
       resolve { resolver with statements = [ Parser.Expression s.while_condition ] }
