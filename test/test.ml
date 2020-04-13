@@ -301,16 +301,10 @@ let () =
           ; "print"
           ; "mutual_recursion"
           ] )
-    ; ( "scanning tests"
-      , make_unit_tests
-          "scanning"
-          [ "numbers"; "keywords"; "punctuators"; "whitespace"; "identifiers"; "strings" ]
-      )
     ; "number tests", make_unit_tests "number" [ "nan_equality"; "literals" ]
     ; ( "logical operators tests"
       , make_unit_tests "logical_operator" [ "and"; "or"; "and_truth"; "or_truth" ] )
     ; "boolean tests", make_unit_tests "bool" [ "equality"; "not" ]
-    ; "expressions tests", make_unit_tests "expressions" [ "evaluate"; "parse" ]
       (* ; ( "for loop tests"
        *   , make_unit_tests
        *       "for"
