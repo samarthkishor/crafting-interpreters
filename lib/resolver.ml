@@ -2,8 +2,8 @@ open Base
 
 module Scopes = struct
   type var_status =
-    | Declare
-    | Define
+    | Declare (** the variable is in the innermost scope and uninitialized *)
+    | Define (** the variable is initialized to a value *)
 
   type t = (string, var_status) Hashtbl.t Stack.t
 
@@ -74,37 +74,49 @@ let make_resolver statements =
   }
 ;;
 
-let add_variable (name : Scanner.token) scopes (status : Scopes.var_status) : Scopes.t =
-  if Scopes.empty scopes
-  then scopes
-  else (
-    let scope =
-      match Stack.pop scopes with
-      | None -> Hashtbl.create ~growth_allowed:true ~size:16 (module String)
-      | Some s -> s
-    in
-    let () =
-      match status with
-      | Define -> ()
-      | Declare ->
-        (match Hashtbl.find scope name.lexeme with
-        | None -> ()
-        | Some _ ->
-          LoxError.error
-            name.line
-            "Variable with this name already declared in this scope.")
-    in
-    let new_scope =
-      match Hashtbl.add scope ~key:name.lexeme ~data:status with
-      | `Duplicate ->
-        Hashtbl.set scope ~key:name.lexeme ~data:status;
-        scope
-      | `Ok -> scope
-    in
-    Stack.push scopes new_scope;
-    scopes)
+let begin_scope resolver =
+  let () =
+    Stack.push
+      resolver.scopes
+      (Hashtbl.create ~growth_allowed:true ~size:16 (module String))
+  in
+  resolver
 ;;
 
+let end_scope resolver =
+  let () =
+    match Stack.pop resolver.scopes with
+    | None | Some _ -> ()
+  in
+  resolver
+;;
+
+(** Update the variable's status as Declared or Defined within the current scope *)
+let add_variable name (status : Scopes.var_status) resolver =
+  let update_variable_status (name : Scanner.token) status resolver =
+    match Stack.top resolver.scopes with
+    | None -> resolver
+    | Some scope ->
+      let new_scope =
+        match Hashtbl.add scope ~key:name.lexeme ~data:status with
+        | `Duplicate ->
+          Hashtbl.set scope ~key:name.lexeme ~data:status;
+          scope
+        | `Ok -> scope
+      in
+      let () = Stack.push resolver.scopes new_scope in
+      resolver
+  in
+  if Scopes.empty resolver.scopes
+  then resolver
+  else (
+    match status with
+    | Declare -> update_variable_status name status resolver
+    | Define -> update_variable_status name status resolver)
+;;
+
+(** Resolve the depths of the variables seen so far, keeping track of the scope
+    that each variable is in. *)
 let resolve_local resolver (var : Scanner.token) =
   let scope_count =
     (* iterate over the scopes in reverse order (bottom-first) *)
@@ -130,40 +142,29 @@ let rec resolve resolver =
     LoxError.report_runtime_error (LoxError.RuntimeError error);
     { resolver with parsed_statements = [] }
 
-and define_function resolver new_scopes (func : Parser.function_declaration) function_type
+and define_function
+    (func : Parser.function_declaration)
+    (function_type : function_type)
+    resolver
   =
   let enclosing_function = resolver.current_function in
-  let resolver = { resolver with current_function = function_type } in
-  let () =
-    Stack.push new_scopes (Hashtbl.create ~growth_allowed:true ~size:16 (module String))
-  in
-  let new_scopes =
-    List.fold func.params ~init:new_scopes ~f:(fun scopes param ->
-        let s = add_variable param scopes Declare in
-        add_variable param s Define)
+  let resolver =
+    List.fold func.params ~init:(begin_scope resolver) ~f:(fun acc_resolver param ->
+        acc_resolver |> add_variable param Declare |> add_variable param Define)
   in
   let new_resolver =
-    resolve { resolver with statements = func.fun_body; scopes = new_scopes }
+    resolve { resolver with statements = func.fun_body; current_function = function_type }
   in
-  (match Stack.pop new_resolver.scopes with
-  | None | Some _ -> ());
-  { resolver with current_function = enclosing_function }
+  { new_resolver with current_function = enclosing_function } |> end_scope
 
 and resolve_statement resolver statement =
   match statement with
   | Block block_statements ->
-    let () =
-      Stack.push
-        resolver.scopes
-        (Hashtbl.create ~growth_allowed:true ~size:16 (module String))
-    in
-    let new_resolver = resolve { resolver with statements = block_statements } in
-    (match Stack.pop new_resolver.scopes with
-    | None | Some _ -> ());
-    resolve new_resolver
+    { resolver with statements = block_statements } |> begin_scope |> resolve |> end_scope
   | VarDeclaration v ->
-    let new_scopes = add_variable v.name resolver.scopes Declare in
+    let new_resolver = add_variable v.name Declare resolver in
     let var_initializer =
+      (* None if it's LoxNil, else it's Some expression *)
       (* TODO make literal variable an option type *)
       match v.init with
       | Literal l ->
@@ -173,9 +174,10 @@ and resolve_statement resolver statement =
       | i -> Some i
     in
     (match var_initializer with
-    | None -> { resolver with scopes = add_variable v.name new_scopes Define }
+    | None -> add_variable v.name Define new_resolver
     | Some i ->
-      resolve { resolver with statements = [ Parser.Expression i ]; scopes = new_scopes })
+      resolve { new_resolver with statements = [ Parser.Expression i ] }
+      |> add_variable v.name Define)
   | Expression expr ->
     (match expr with
     | Variable var ->
@@ -223,9 +225,10 @@ and resolve_statement resolver statement =
     | Unary expr ->
       resolve { resolver with statements = [ Parser.Expression expr.operand ] })
   | FunctionDeclaration d ->
-    let new_scopes = add_variable d.fun_name resolver.scopes Declare in
-    let new_scopes = add_variable d.fun_name new_scopes Define in
-    define_function resolver new_scopes d Some_function
+    resolver
+    |> add_variable d.fun_name Declare
+    |> add_variable d.fun_name Define
+    |> define_function d Some_function
   | IfStatement s ->
     let new_resolver =
       resolve { resolver with statements = [ Parser.Expression s.condition ] }
