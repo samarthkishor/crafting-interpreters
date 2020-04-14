@@ -107,12 +107,9 @@ let add_variable name (status : Scopes.var_status) resolver =
       let () = Stack.push resolver.scopes new_scope in
       resolver
   in
-  if Scopes.empty resolver.scopes
-  then resolver
-  else (
-    match status with
-    | Declare -> update_variable_status name status resolver
-    | Define -> update_variable_status name status resolver)
+  match status with
+  | Declare -> update_variable_status name status resolver
+  | Define -> update_variable_status name status resolver
 ;;
 
 (** Resolve the depths of the variables seen so far, keeping track of the scope
