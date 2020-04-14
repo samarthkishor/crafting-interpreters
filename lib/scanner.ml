@@ -162,8 +162,14 @@ let rec consume_string scanner =
   else scanner |> advance_scanner |> consume_string
 ;;
 
-let is_digit c = Char.(>=) c '0' && Char.(<=) c '9'
-let is_alpha c = (Char.(>=) c 'a' && Char.(<=) c 'z') || (Char.(>=) c 'A' && Char.(<=) c 'z') || Char.equal c '_'
+let is_digit c = Char.( >= ) c '0' && Char.( <= ) c '9'
+
+let is_alpha c =
+  (Char.( >= ) c 'a' && Char.( <= ) c 'z')
+  || (Char.( >= ) c 'A' && Char.( <= ) c 'z')
+  || Char.equal c '_'
+;;
+
 let is_alphanumeric c = is_digit c || is_alpha c
 
 let rec number scanner =
