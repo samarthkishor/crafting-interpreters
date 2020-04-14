@@ -92,25 +92,20 @@ let end_scope resolver =
 ;;
 
 (** Update the variable's status as Declared or Defined within the current scope *)
-let add_variable name (status : Scopes.var_status) resolver =
-  let update_variable_status (name : Scanner.token) status resolver =
-    (* pop the scope, update it, and push it back *)
-    match Stack.pop resolver.scopes with
-    | None -> resolver
-    | Some scope ->
-      let new_scope =
-        match Hashtbl.add scope ~key:name.lexeme ~data:status with
-        | `Duplicate ->
-          Hashtbl.set scope ~key:name.lexeme ~data:status;
-          scope
-        | `Ok -> scope
-      in
-      let () = Stack.push resolver.scopes new_scope in
-      resolver
-  in
-  match status with
-  | Declare -> update_variable_status name status resolver
-  | Define -> update_variable_status name status resolver
+let add_variable (name : Scanner.token) (status : Scopes.var_status) resolver =
+  (* pop the scope, update it, and push it back *)
+  match Stack.pop resolver.scopes with
+  | None -> resolver
+  | Some scope ->
+    let new_scope =
+      match Hashtbl.add scope ~key:name.lexeme ~data:status with
+      | `Duplicate ->
+        Hashtbl.set scope ~key:name.lexeme ~data:status;
+        scope
+      | `Ok -> scope
+    in
+    let () = Stack.push resolver.scopes new_scope in
+    resolver
 ;;
 
 (** Resolve the depths of the variables seen so far, keeping track of the scope
