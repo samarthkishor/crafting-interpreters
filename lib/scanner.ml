@@ -44,7 +44,7 @@ type token_type =
   | Var
   | While
   | Eof
-[@@deriving eq, show]
+[@@deriving eq, show { with_path = false }]
 
 type token =
   { token_type : token_type
@@ -52,7 +52,7 @@ type token =
   ; literal : Value.t
   ; line : int
   }
-[@@deriving show]
+[@@deriving show { with_path = false }]
 
 type scanner =
   { source : string

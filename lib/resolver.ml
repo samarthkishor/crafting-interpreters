@@ -54,7 +54,7 @@ end
 type function_type =
   | No_function
   | Some_function
-[@@deriving show]
+[@@deriving show { with_path = false }]
 
 type t =
   { statements : Parser.statement list
@@ -63,7 +63,7 @@ type t =
   ; current_function : function_type
   ; parsed_statements : Parser.statement list [@opaque]
   }
-[@@deriving show]
+[@@deriving show { with_path = false }]
 
 let make_resolver statements =
   { statements

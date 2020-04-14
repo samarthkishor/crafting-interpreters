@@ -13,7 +13,7 @@ and lox_function =
   ; name : string
   ; callable : t list -> t [@equal fun _ _ -> false] (* no equality for functions *)
   }
-[@@deriving show, eq]
+[@@deriving show { with_path = false }, eq]
 
 type eval_type =
   | Bool

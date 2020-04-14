@@ -9,7 +9,7 @@ type expr =
   | Variable of Scanner.token
   | Assign of assign
   | Logical of logical
-[@@deriving show]
+[@@deriving show { with_path = false }]
 
 and unary =
   { unary_operator : Scanner.token
@@ -88,7 +88,7 @@ type statement =
   | VarDeclaration of var_declaration
   | WhileStatement of while_statement
   | Block of statement list
-[@@deriving show]
+[@@deriving show { with_path = false }]
 
 and if_statement =
   { condition : expr
