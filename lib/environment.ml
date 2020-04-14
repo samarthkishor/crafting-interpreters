@@ -82,7 +82,10 @@ let get_at_distance environment distance (name : Scanner.token) =
     raise
     @@ LoxError.RuntimeError
          { where = name.line
-         ; message = "Error in resolution phase with variable '" ^ name.lexeme ^ "'."
+         ; message =
+             "Error in resolution phase when getting the value of variable '"
+             ^ name.lexeme
+             ^ "'."
          }
   | Some env -> get_value env name
 ;;
@@ -93,7 +96,10 @@ let assign_at_distance environment (name : Scanner.token) value distance =
     raise
     @@ LoxError.RuntimeError
          { where = name.line
-         ; message = "Error in resolution phase with variable '" ^ name.lexeme ^ "'."
+         ; message =
+             "Error in resolution phase assigning a value to variable '"
+             ^ name.lexeme
+             ^ "'."
          }
   | Some env ->
     (match Hashtbl.add env.values ~key:name.lexeme ~data:value with
