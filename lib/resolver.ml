@@ -94,6 +94,7 @@ let end_scope resolver =
 (** Update the variable's status as Declared or Defined within the current scope *)
 let add_variable name (status : Scopes.var_status) resolver =
   let update_variable_status (name : Scanner.token) status resolver =
+    (* pop the scope, update it, and push it back *)
     match Stack.pop resolver.scopes with
     | None -> resolver
     | Some scope ->
