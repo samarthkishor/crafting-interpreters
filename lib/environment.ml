@@ -18,7 +18,7 @@ type t =
   { values : Values.t
   ; mutable enclosing : t option
   }
-[@@deriving show]
+[@@deriving show { with_path = false }]
 
 let init ?enclosing () =
   { values = Hashtbl.create ~growth_allowed:true ~size:32 (module String); enclosing }

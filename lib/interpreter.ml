@@ -5,6 +5,7 @@ type t =
   ; mutable globals : Environment.t
   ; locals : Resolver.Depths.t
   }
+[@@deriving show { with_path = false }]
 
 exception Return of Value.t
 
