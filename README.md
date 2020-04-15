@@ -13,7 +13,9 @@ the relevant dependencies via `opam`.
 
 Run `dune exec ./bin/main.exe` from the root directory to launch the interpreter.
 
-Tests are executed by running `dune runtest`.
+Tests are executed by running `dune runtest`. This implementation passes 72/82
+of the relevant Lox tests (I removed the ones that involved classes) and for
+now only fails the tests related to lexical closures.
 
 ## Why OCaml?
 
