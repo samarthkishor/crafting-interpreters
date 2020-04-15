@@ -204,10 +204,8 @@ and resolve_statement resolver statement =
       let new_resolver =
         resolve { resolver with statements = [ Parser.Expression expr.callee ] }
       in
-      resolve
-        { new_resolver with
-          statements = List.map expr.arguments ~f:(fun arg -> Parser.Expression arg)
-        }
+      List.fold expr.arguments ~init:new_resolver ~f:(fun acc_resolver arg ->
+          resolve { acc_resolver with statements = [ Parser.Expression arg ] })
     | Grouping expr ->
       resolve { resolver with statements = [ Parser.Expression expr.expression ] }
     | Logical expr ->
