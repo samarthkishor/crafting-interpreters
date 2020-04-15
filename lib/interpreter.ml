@@ -118,7 +118,7 @@ let rec evaluate state (expr : Parser.expr) =
     | _ ->
       raise
       @@ LoxError.RuntimeError
-           { where = c.paren.line; message = "Can only call functions and classes." })
+           { where = c.paren.line; message = "Can only call functions." })
   | Variable token -> look_up_variable state token
   | Assign expr ->
     let value = evaluate state expr.assign_value in
